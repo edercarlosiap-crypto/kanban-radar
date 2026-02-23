@@ -1,312 +1,407 @@
-# 🚀 Cálculo de Comissão
+# 📊 Radar Estratégico PRO
 
-Sistema completo de cálculo de comissão construído com **Express Backend + React Frontend**.
+Sistema web profissional para controle de projetos, tarefas e iniciativas estratégicas.
 
-**100% compatível com Radar Estratégico PRO** - Arquitetura, design system, autenticação JWT e padrões de código.
+## 🎯 Características
 
----
+✨ **Autenticação JWT Obrigatória** - Sistema seguro de login com perfis  
+📊 **Dashboard Intuitivo** - Visão geral de projetos e KPIs  
+🎯 **Kanban Drag & Drop** - Gerenciamento visual de tarefas  
+📥 **Importação Excel** - Integração com planilhas (mapeamento inteligente)  
+📈 **Indicadores Automáticos** - Status atualizado em tempo real  
+👥 **Multiusuário** - Controle de acesso por perfil (Leitura, Editor, Gestor, Admin)  
+🛡 **Rotas Protegidas** - Todas as páginas exigem autenticação  
+📑 **Relatórios Completos** - Visão Geral, Riscos, Pessoas, Diretorias, Timeline  
+🖼️ **Branding** - Upload de logo personalizado (Admin)
 
-## 📋 Funcionalidades
+## 🛠 Stack Tecnológico
 
-✅ **Autenticação JWT** com perfis de acesso (leitura, editor, gestor, admin)
-✅ **Dashboard** com informações do usuário
-✅ **Gerenciamento de Regionais** (apenas admin)
-✅ **Gerenciamento de Usuários** (apenas admin)
-✅ **Configuração de Regras de Comissão** (apenas admin)
-✅ **Design System iOS Modern** com cores e componentes padronizados
-✅ **Banco SQLite** com estrutura normalizada
-✅ **API RESTful** com padrões CRUD
+- **Backend**: Node.js + Express + SQLite
+- **Frontend**: React + Router + Axios
+- **Drag & Drop**: @hello-pangea/dnd
+- **Excel**: SheetJS (xlsx)
+- **Autenticação**: JWT + bcrypt
+- **CSS**: Estilos corporativos customizados
 
----
+## 📁 Estrutura do Projeto
 
-## 🛠️ Stack Tecnológico
-
-### Backend
-- **Node.js 14+**
-- **Express 4.18.2** - Framework web
-- **SQLite3 5.1.7** - Banco de dados
-- **JWT 9.0.0** - Autenticação
-- **bcryptjs 2.4.3** - Hash de senhas
-
-### Frontend
-- **React 18.2.0** - Library UI
-- **React Router DOM 6.8.0** - Roteamento
-- **Axios 1.3.2** - HTTP client
-- **Recharts 2.12.5** - Gráficos
-
----
-
-## 📦 Instalação
-
-### 1. Clone ou copie o projeto
-
-```bash
-cd calculo-comissao-radar-pro
+```
+radar-estrategico-pro/
+├── backend/
+│   ├── src/
+│   │   ├── config/
+│   │   │   └── database.js          # Configuração SQLite
+│   │   ├── controllers/
+│   │   │   ├── authController.js    # Autenticação
+│   │   │   └── radarController.js   # Radar CRUD
+│   │   ├── middleware/
+│   │   │   └── auth.js              # Middleware JWT
+│   │   ├── models/
+│   │   │   ├── Usuario.js           # Model Usuário
+│   │   │   └── Radar.js             # Model Radar
+│   │   ├── routes/
+│   │   │   ├── authRoutes.js        # Rotas auth
+│   │   │   └── radarRoutes.js       # Rotas radar
+│   │   ├── app.js                   # Config Express
+│   │   └── server.js                # Entry point
+│   ├── package.json
+│   ├── .env                         # Variáveis ambiente
+│   └── database.db                  # Banco SQLite (gerado)
+│
+├── frontend/
+│   ├── public/
+│   │   └── index.html
+│   ├── src/
+│   │   ├── pages/
+│   │   │   ├── Login.js             # Tela de login
+│   │   │   ├── Dashboard.js         # Dashboard principal
+│   │   │   ├── Radar.js             # Lista de itens
+│   │   │   ├── Kanban.js            # View Kanban
+│   │   │   └── ImportarExcel.js     # Importação
+│   │   ├── services/
+│   │   │   └── api.js               # Cliente API
+│   │   ├── App.js                   # Router principal
+│   │   ├── index.js                 # Entry point
+│   │   └── App.css                  # Estilos globais
+│   ├── package.json
+│   └── .gitignore
+│
+└── README.md                        # Este arquivo
 ```
 
-### 2. Instale dependências do Backend
+## 🚀 Instalação e Configuração
+
+### 1️⃣ Clonar/Preparar o projeto
+
+```bash
+cd radar-estrategico-pro
+```
+
+### 2️⃣ Instalar Backend
 
 ```bash
 cd backend
 npm install
 ```
 
-### 3. Instale dependências do Frontend
+Configure o arquivo `.env`:
+
+```
+JWT_SECRET=sua_chave_secreta_super_segura_123456
+PORT=5000
+NODE_ENV=development
+```
+
+### 3️⃣ Instalar Frontend
 
 ```bash
 cd ../frontend
 npm install
 ```
 
----
+## � Primeiro Acesso
 
-## ⚙️ Configuração
-
-### Backend
-
-1. Verifique o arquivo `.env`:
-
-```bash
-# backend/.env
-PORT=5000
-JWT_SECRET=seu_jwt_secret_super_secreto_minimo_32_caracteres_12345
-NODE_ENV=development
-```
-
-2. (Opcional) Customize o `JWT_SECRET` com um valor seguro:
+O sistema possui um usuário administrador padrão pré-criado:
 
 ```
-JWT_SECRET=meu_muito_secreto_super_seguro_token_string_123456789
+📧 Email: admin@uni.com
+🔑 Senha: admin123
 ```
 
----
+**⚠️ IMPORTANTE:** Altere a senha após o primeiro login!
 
-## 🚀 Execução
+## �📚 Iniciando a Aplicação
 
-### Terminal 1 - Backend (porta 5000)
+### Terminal 1 - Backend
 
 ```bash
 cd backend
-npm run dev
+npm start
 ```
 
-Você verá:
+Resultado esperado:
 ```
-==================================================
-✅ Backend funcionando na porta 5000
-📍 http://localhost:5000
-==================================================
+╔════════════════════════════════════════╗
+║   Radar Estratégico PRO - Backend     ║
+║   Servidor iniciado com sucesso      ║
+║   ✓ Banco de dados SQLite conectado  ║
+║   Porta: 5000                        ║
+╚════════════════════════════════════════╝
 ```
 
-### Terminal 2 - Frontend (porta 3000)
+### Terminal 2 - Frontend
 
 ```bash
 cd frontend
 npm start
 ```
 
-O navegador abrirá automaticamente em `http://localhost:3000`.
+O frontend abrirá automaticamente em `http://localhost:3000`
 
----
+## 🔐 Módulo de Autenticação
 
-## 🔑 Login Padrão
-
-**Email:** `admin@example.com`
-**Senha:** `123456`
-**Função:** `admin`
-
-> ⚠️ Gere seus dados de seed customizados antes de produção!
-
----
-
-## 📁 Estrutura de Pastas
+### Registrar Novo Usuário
 
 ```
-calculo-comissao-radar-pro/
-│
-├── backend/
-│   ├── src/
-│   │   ├── app.js              # Configuração Express
-│   │   ├── server.js           # Entrada do servidor
-│   │   ├── config/
-│   │   │   └── database.js     # Configuração SQLite
-│   │   ├── middleware/
-│   │   │   └── auth.js         # JWT authentication
-│   │   ├── models/             # Models de dados
-│   │   ├── controllers/        # Controllers de lógica
-│   │   ├── routes/             # Definição de rotas
-│   │   └── utils/              # Funções auxiliares
-│   ├── .env                    # Variáveis de ambiente
-│   ├── package.json
-│   └── database.db             # (criado automaticamente)
-│
-├── frontend/
-│   ├── src/
-│   │   ├── App.js              # Componente raiz
-│   │   ├── App.css             # Design System completo
-│   │   ├── index.js            # Entry point
-│   │   ├── components/         # Componentes reutilizáveis
-│   │   ├── pages/              # Páginas da aplicação
-│   │   ├── services/
-│   │   │   └── api.js          # Configuração axios
-│   │   └── utils/
-│   ├── public/
-│   │   └── index.html
-│   └── package.json
-└── README.md
+GET /login (no navegador)
+→ Clicar em "Registrar"
+→ Preencher: Nome, Email, Senha
+→ Será feito auto-login e redirecionado para Dashboard
 ```
 
----
+### Fazer Login
 
-## 🔌 API Endpoints
+```
+POST /auth/login
+{
+  "email": "usuario@example.com",
+  "senha": "senha123456"
+}
+
+Resposta:
+{
+  "token": "eyJhbGc...",
+  "usuario": {
+    "id": 1,
+    "nome": "João",
+    "email": "joao@example.com",
+    "perfil": "usuario"
+  }
+}
+```
+
+## 📊 Módulo do Radar
+
+### Criação de Item
+
+**Campos obrigatórios:**
+- Camada (ex: Estratégica, Tática)
+- Tipo (ex: Projeto, Iniciativa)
+- Ação (descrição)
+- Equipe (responsável coletivamente)
+- Responsável (pessoa)
+- Concluir até (data limite)
+
+**Campos opcionais:**
+- Prioridade (Baixa, Média, Alta, Crítica)
+- Kanban (coluna atual)
+- Observação
+- Link Bitrix
+
+### Status Automático
+
+Os itens são classificados automaticamente:
+
+```
+🟢 Verde (No prazo)        → > 7 dias até data limite
+🟡 Amarelo (Atenção)       → 4-7 dias até data limite
+🔴 Vermelho (Crítico)      → 0-3 dias até data limite
+🔴 Atrasado               → < 0 dias (passou do prazo)
+```
+
+## 🎯 Sistema Kanban
+
+**Colunas disponíveis:**
+1. Backlog
+2. Planejado
+3. Em Estruturação
+4. Em Execução
+5. Travado
+6. Validação
+7. Concluído
+
+**Funcionalidade:**
+- Arraste cartões entre colunas
+- Atualização automática no banco de dados
+- Indicadores visuais de prioridade e prazo
+
+## 📥 Importação de Excel
+
+### Formato da Planilha
+
+A planilha debe conter estas colunas:
+
+| Coluna | Descrição | Exemplo |
+|--------|-----------|---------|
+| Data criação | Data de criação (YYYY-MM-DD) | 2024-02-07 |
+| Camada | Camada estratégica | Estratégica |
+| Prioridade | Nível de prioridade | Alta |
+| Tipo | Tipo de ação | Projeto |
+| Ação | Descrição da ação | Implementar sistema |
+| Equipe | Equipe responsável | TI |
+| Responsável | Pessoa responsável | João Silva |
+| Concluir até | Data limite (YYYY-MM-DD) | 2024-03-15 |
+| Kanban | Status atual | Em Execução |
+| Observação | Notas adicionais | Já iniciado |
+| Link bitrix | Link do Bitrix24 | https://bitrix.com |
+
+### Como Usar
+
+1. Clique em "📥 Importar Excel" no menu
+2. Clique em "Download Modelo" para obter o template
+3. Preencha a planilha com seus dados
+4. Selecione o arquivo e clique em "Importar"
+5. Os itens serão criados em seu radar
+
+## 📊 Dashboard
+
+Mostra estatísticas em tempo real:
+
+- **Total de Itens**: Quantidade total
+- **Concluídos**: Itens finalizados
+- **Críticos**: Itens em vermelho (0-3 dias ou atrasados)
+- **Atrasados**: Itens com prazo vencido
+- **Barra de Progresso**: % concluído
+
+## 🔌 API REST
 
 ### Autenticação
-- `POST /api/auth/register` - Registrar novo usuário
-- `POST /api/auth/login` - Fazer login
-- `GET /api/auth/me` - Obter perfil do usuário
 
-### Usuários
-- `GET /api/usuarios` - Listar todos
-- `GET /api/usuarios/:id` - Buscar por ID
-- `PUT /api/usuarios/:id` - Atualizar (admin)
-- `DELETE /api/usuarios/:id` - Deletar (admin)
+```bash
+POST /auth/register
+POST /auth/login
+GET /auth/me (protegida)
+```
 
-### Regionais
-- `GET /api/regionais` - Listar todas
-- `GET /api/regionais/:id` - Buscar por ID
-- `POST /api/regionais` - Criar (admin)
-- `PUT /api/regionais/:id` - Atualizar (admin)
-- `DELETE /api/regionais/:id` - Deletar (admin)
+### Radar
 
-### Regras de Comissão
-- `GET /api/regras-comissao` - Listar todas
-- `GET /api/regras-comissao/:id` - Buscar por ID
-- `GET /api/regras-comissao/regional/:regionalId` - Listar por regional
-- `POST /api/regras-comissao` - Criar (admin)
-- `PUT /api/regras-comissao/:id` - Atualizar (admin)
-- `DELETE /api/regras-comissao/:id` - Deletar (admin)
+```bash
+GET /radar                    # Lista todos
+POST /radar                   # Criar novo
+GET /radar/:id               # Buscar um
+PUT /radar/:id               # Atualizar
+DELETE /radar/:id            # Deletar
+POST /radar/importar-excel    # Importar Excel
+GET /radar/estatisticas/dashboard  # Stats
+```
 
-### Vendas
-- `GET /api/vendas` - Listar todas
-- `GET /api/vendas/:id` - Buscar por ID
-- `GET /api/vendas/usuario/:usuarioId` - Listar por usuario
-- `GET /api/vendas/regional/:regionalId` - Listar por regional
-- `POST /api/vendas` - Criar
-- `PUT /api/vendas/:id` - Atualizar
-- `DELETE /api/vendas/:id` - Deletar (gestor/admin)
+## 🎨 Personalização
 
----
+### Alterar Cores Corporativas
 
-## 🎨 Design System
+Edite `frontend/src/App.css`:
 
-### Cores Principais
-- **Primária:** `#007AFF` (Azul iOS)
-- **Sucesso:** `#34C759` (Verde)
-- **Alerta:** `#FF9500` (Laranja)
-- **Perigo:** `#FF3B30` (Vermelho)
+```css
+:root {
+  --primary: #2563eb;      /* Azul principal */
+  --secondary: #64748b;    /* Cinza */
+  --success: #10b981;      /* Verde */
+  --warning: #f59e0b;      /* Amarelo */
+  --danger: #ef4444;       /* Vermelho */
+}
+```
 
-### Componentes Padronizados
-- `.glass-card` - Cards com efeito glassmorphism
-- `.btn-primary`, `.btn-secondary`, `.btn-danger` - Botões
-- `.form-control`, `.form-select` - Formulários
-- `.sidebar` - Barra lateral fixa 280px
-- `.main-content` - Conteúdo principal responsivo
+### Alterar Logo/Título
 
----
+Edite `frontend/src/pages/Login.js`:
 
-## 👥 Perfis de Acesso
+```jsx
+<h1 style={styles.titulo}>📊 Seu Logo</h1>
+```
 
-| Perfil | Visualizar | Editar | Deletar | Admin |
-|--------|-----------|--------|--------|-------|
-| leitura | ✓ | ✗ | ✗ | ✗ |
-| editor | ✓ | ✓ | ✗ | ✗ |
-| gestor | ✓ | ✓ | ✓ | ✗ |
-| admin | ✓ | ✓ | ✓ | ✓ |
+## 🐛 Troubleshooting
 
----
+### "Porta 5000 já em uso"
+```bash
+# Windows
+netstat -ano | findstr :5000
+taskkill /PID <PID> /F
 
-## 🗄️ Banco de Dados
+# Linux/Mac
+lsof -i :5000
+kill -9 <PID>
+```
 
-O banco SQLite é criado automaticamente em `backend/database.db` com as tabelas:
+### "CORS error"
+Verifique se backend está rodando em `http://localhost:5000`
 
-- **usuarios** - Usuários do sistema
-- **regionais** - Regionais de vendas
-- **regras_comissao** - Regras de cálculo de comissão
-- **vendas** - Registro de vendas
+### "Banco de dados não inicializa"
+Delete `backend/database.db` e reinicie o backend
 
----
+## 📝 Exemplo de Uso
+
+### 1. Criar Conta
+
+- Abra http://localhost:3000/login
+- Clique em "Registrar"
+- Preencha: Nome, Email, Senha
+- Clique em "Registrar"
+
+### 2. Adicionar Item
+
+- Vá para "📈 Radar"
+- Clique em "+ Novo Item"
+- Preencha os campos obrigatórios
+- Clique em "✓ Criar"
+
+### 3. Gerenciar no Kanban
+
+- Vá para "🎯 Kanban"
+- Arraste os cartões entre colunas
+- As mudanças são salvas automaticamente
+
+### 4. Importar Excel
+
+- Vá para "📥 Importar Excel"
+- Clique em "Download Modelo"
+- Preencha a planilha
+- Envie a planilha
 
 ## 🔒 Segurança
 
-✅ Senhas com hash bcrypt
-✅ JWT com expiração 7 dias
-✅ CORS configurado (localhost:3000/3001)
-✅ Validação de permissões em cada rota
-✅ Tokens armazenados no localStorage
+- ✅ Senhas criptografadas com bcrypt
+- ✅ Tokens JWT com expiração (7 dias)
+- ✅ Isolamento de dados por usuário
+- ✅ Validação em cliente e servidor
+- ✅ CORS configurado
 
----
+## 📱 Responsividade
 
-## 🧪 Testes
+Sistema otimizado para:
+- 🖥️ Desktop (1920px+)
+- 💻 Tablet (768px - 1024px)
+- 📱 Mobile (320px - 767px)
 
-### Testar Backend
+## 🚢 Deploy
 
-```bash
-cd backend
-curl http://localhost:5000/health
-# Resposta: {"status":"Backend funcionando ✓"}
-```
-
-### Testar Login
+### Deploy Backend (Heroku, Render, Railway)
 
 ```bash
-curl -X POST http://localhost:5000/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"admin@example.com","senha":"123456"}'
+# Prepare
+heroku login
+heroku create seu-app-radar
+
+# Enviar
+git push heroku main
+
+# Configurar .env
+heroku config:set JWT_SECRET=sua_chave
 ```
 
----
+### Deploy Frontend (Vercel, Netlify)
 
-## 📝 Checklist de Compatibilidade
+```bash
+# Vercel
+npm install -g vercel
+vercel
 
-- ✅ Backend rodando na porta 5000
-- ✅ Frontend rodando na porta 3000
-- ✅ Design System iOS implementado
-- ✅ Autenticação JWT funcionando
-- ✅ Sidebar + main content layout
-- ✅ Perfis de acesso implementados
-- ✅ CRUD completo de todas entidades
-- ✅ SQLite com estrutura normalizada
-- ✅ Error handling completo
-- ✅ Respalde pronto para produção
+# Configure API_BASE baseado em produção
+```
 
----
+## 📞 Suporte
 
-## 🚀 Deploy (Próximas Etapas)
-
-Para produção:
-
-1. Gere JWT_SECRET seguro
-2. Altere NODE_ENV para production
-3. Configure CORS para domínios reais
-4. Use banco PostgreSQL/MySQL
-5. Implemente HTTPS
-6. Configure variáveis de ambiente via CI/CD
-
----
-
-## 📚 Referência
-
-- [Documentação de Arquitetura](../Detalhado%20Radar)
-- [Express Documentation](https://expressjs.com)
-- [React Documentation](https://react.dev)
-- [SQLite Documentation](https://www.sqlite.org)
-
----
+Para dúvidas ou problemas:
+1. Verifique o console (F12) para erros
+2. Verifique os logs do backend
+3. Confirme se banco e APIs estão rodando
 
 ## 📄 Licença
 
-Este projeto é código propriétário.
+Projeto interno - Radar Estratégico PRO © 2024
 
 ---
 
-**Versão:** 1.0 | **Data:** 17/02/2026 | **Status:** Pronto para Produção
+**Made with ❤️ para gestão estratégica eficiente**
+#   k a n b a n - r a d a r  
+ #   k a n b a n - r a d a r  
+ 
