@@ -1,0 +1,318 @@
+.comissao-card,
+.dashboard-card {
+  margin-top: 20px;
+  padding: 20px;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  border: 2px dashed #2196F3;
+  overflow-x: auto;
+  overflow-y: hidden;
+  position: relative;
+}
+
+.dashboard-card {
+  border-color: #4CAF50;
+}
+
+.dashboards {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.comissao-title {
+  margin: 0 0 15px 0;
+  font-size: 18px;
+  color: #333;
+}
+
+.comissao-title--vendedores {
+  position: sticky;
+  left: 0;
+  z-index: 4;
+  background: #fff;
+  padding: 8px 0;
+}
+
+.comissao-card--vendedores {
+  overflow-x: visible;
+}
+
+.comissao-table-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.comissao-resumo {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.comissao-resumo div {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.comissao-label {
+  font-size: 12px;
+  color: #666;
+  font-weight: 600;
+}
+
+.comissao-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+
+.comissao-table th,
+.comissao-table td {
+  padding: 12px 10px;
+  border-bottom: 1px solid #eee;
+  font-size: 14px;
+  color: #444;
+  text-align: center;
+  min-width: 70px;
+  white-space: nowrap;
+}
+
+.comissao-table th {
+  font-size: 13px;
+  text-transform: uppercase;
+  color: #666;
+  background: #f4f6f8;
+  font-weight: 600;
+}
+
+.comissao-table td:first-child,
+.comissao-table th:first-child {
+  text-align: left;
+  font-weight: 600;
+  color: #333;
+}
+
+.comissao-table--vendedores th:first-child,
+.comissao-table--vendedores td:first-child {
+  position: sticky;
+  left: 0;
+  background: #fff;
+  z-index: 2;
+  min-width: 220px;
+  box-shadow: 6px 0 8px -8px rgba(0, 0, 0, 0.2);
+}
+
+.comissao-table--vendedores thead th:first-child {
+  background: #f4f6f8;
+  z-index: 3;
+}
+
+.comissao-table--vendedores th:nth-child(2),
+.comissao-table--vendedores td:nth-child(2) {
+  position: sticky;
+  left: 220px;
+  background: #fff;
+  z-index: 2;
+  min-width: 120px;
+  box-shadow: 6px 0 8px -8px rgba(0, 0, 0, 0.2);
+}
+
+.comissao-table--vendedores thead th:nth-child(2) {
+  background: #f4f6f8;
+  z-index: 3;
+}
+
+.comissao-table--vendedores th:nth-child(3),
+.comissao-table--vendedores th:nth-child(7),
+.comissao-table--vendedores th:nth-child(11),
+.comissao-table--vendedores th:nth-child(15),
+.comissao-table--vendedores th:nth-child(19),
+.comissao-table--vendedores th:nth-child(23),
+.comissao-table--vendedores th:nth-child(27),
+.comissao-table--vendedores td:nth-child(3),
+.comissao-table--vendedores td:nth-child(7),
+.comissao-table--vendedores td:nth-child(11),
+.comissao-table--vendedores td:nth-child(15),
+.comissao-table--vendedores td:nth-child(19),
+.comissao-table--vendedores td:nth-child(23),
+.comissao-table--vendedores td:nth-child(27) {
+  border-left: 1px dashed #d6dbe1;
+}
+
+/* Estilos para tabela consolidada */
+.comissao-card--consolidado {
+  overflow-x: visible;
+}
+
+.comissao-title--consolidado {
+  position: sticky;
+  left: 0;
+  z-index: 4;
+  background: #fff;
+  padding: 8px 0;
+}
+
+.comissao-table--consolidado th:first-child,
+.comissao-table--consolidado td:first-child {
+  position: sticky;
+  left: 0;
+  background: #fff;
+  z-index: 2;
+  min-width: 180px;
+  box-shadow: 6px 0 8px -8px rgba(0, 0, 0, 0.2);
+}
+
+.comissao-table--consolidado thead th:first-child {
+  background: #f4f6f8;
+  z-index: 3;
+}
+
+.comissao-table--consolidado th:nth-child(2),
+.comissao-table--consolidado td:nth-child(2) {
+  position: sticky;
+  left: 180px;
+  background: #fff;
+  z-index: 2;
+  min-width: 200px;
+  box-shadow: 6px 0 8px -8px rgba(0, 0, 0, 0.2);
+}
+
+.comissao-table--consolidado thead th:nth-child(2) {
+  background: #f4f6f8;
+  z-index: 3;
+}
+
+.comissao-table--consolidado th:nth-child(n+3),
+.comissao-table--consolidado td:nth-child(n+3) {
+  min-width: 150px;
+}
+
+.comissao-table th:last-child {
+  text-align: right;
+}
+
+.comissao-table td:last-child {
+  text-align: right;
+}
+
+.comissao-table tbody tr:hover {
+  background: #f8f9fa;
+}
+
+.comissao-total td {
+  font-weight: 700;
+  color: #0D47A1;
+  background: #E3F2FD;
+}
+
+/* ===== RESPONSIVIDADE ===== */
+
+/* Tablets e Desktops Pequenos (até 1024px) */
+@media (max-width: 1024px) {
+  .comissao-table th,
+  .comissao-table td {
+    padding: 8px 6px;
+    font-size: 12px;
+    min-width: 60px;
+  }
+
+  .comissao-title {
+    font-size: 16px;
+  }
+}
+
+/* Tablets (até 768px) */
+@media (max-width: 768px) {
+  .comissao-card,
+  .dashboard-card {
+    padding: 15px;
+    border: 1px solid #2196F3;
+    margin-top: 15px;
+  }
+
+  .comissao-table {
+    font-size: 11px;
+  }
+
+  .comissao-table th,
+  .comissao-table td {
+    padding: 6px 4px;
+    font-size: 11px;
+    min-width: 50px;
+  }
+
+  .comissao-table th {
+    font-size: 10px;
+  }
+
+  .comissao-title {
+    font-size: 14px;
+    margin-bottom: 10px;
+  }
+
+  .comissao-resumo {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .comissao-resumo div {
+    padding: 8px;
+  }
+
+  .comissao-label {
+    font-size: 10px;
+  }
+}
+
+/* Celulares (até 480px) */
+@media (max-width: 480px) {
+  .comissao-card,
+  .dashboard-card {
+    padding: 10px;
+    border: 1px solid #2196F3;
+    margin-top: 10px;
+    border-radius: 6px;
+  }
+
+  .comissao-table th,
+  .comissao-table td {
+    padding: 4px 3px;
+    font-size: 10px;
+    min-width: 45px;
+  }
+
+  .comissao-table th {
+    font-size: 9px;
+  }
+
+  .comissao-title {
+    font-size: 12px;
+    margin-bottom: 8px;
+  }
+
+  .comissao-resumo {
+    grid-template-columns: 1fr;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+
+  .comissao-resumo div {
+    padding: 6px;
+  }
+
+  .comissao-label {
+    font-size: 9px;
+  }
+
+  .dashboard-card {
+    padding: 10px;
+  }
+}
