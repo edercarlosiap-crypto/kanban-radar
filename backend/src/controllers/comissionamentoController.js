@@ -109,7 +109,7 @@ exports.calcularComissionamento = async (req, res) => {
 
     // 2) Buscar quantidade de vendedores da regional
     const resultVendedores = await db_get(
-      'SELECT COUNT(*) as qtd FROM colaboradores WHERE regional_id = ? AND status = "ativo"',
+      "SELECT COUNT(*) as qtd FROM colaboradores WHERE regional_id = ? AND status = 'ativo'",
       [regionalId]
     );
     const qtdVendedores = resultVendedores?.qtd || 0;
@@ -1337,3 +1337,4 @@ exports.listarConsolidado = async (req, res) => {
     });
   }
 };
+

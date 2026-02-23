@@ -9,9 +9,11 @@ const corsOrigins = (process.env.CORS_ORIGINS || 'http://localhost:3003')
   .map((origin) => origin.trim())
   .filter(Boolean);
 
+const allowAllOrigins = corsOrigins.includes('*');
+
 // Middleware
 app.use(cors({
-  origin: corsOrigins,
+  origin: allowAllOrigins ? true : corsOrigins,
   credentials: true
 }));
 
