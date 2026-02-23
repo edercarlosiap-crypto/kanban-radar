@@ -1,0 +1,34 @@
+﻿# Backend
+node_modules/
+package-lock.json
+.env
+**/.env
+!.env.example
+.env.local
+.env.*.local
+database.db
+database.sqlite
+*.db
+*.sqlite
+backup-db/
+.DS_Store
+.vscode
+.idea
+
+# Frontend
+/node_modules
+/.pnp
+.pnp.js
+/build
+/dist
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
+.vscode
+.idea

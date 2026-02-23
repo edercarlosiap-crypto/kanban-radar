@@ -1,0 +1,272 @@
+/* ===== KANBAN CONTAINER ===== */
+.kanban-container {
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  overflow-y: visible;
+  padding: 8px 4px 20px 4px;
+  align-items: flex-start;
+  width: 100%;
+  position: relative;
+  z-index: 0;
+}
+
+.kanban-container::-webkit-scrollbar {
+  height: 10px;
+}
+
+.kanban-container::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: var(--radius-lg);
+}
+
+.kanban-container::-webkit-scrollbar-thumb {
+  background: var(--primary);
+  border-radius: var(--radius-lg);
+}
+
+.kanban-container::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-dark);
+}
+
+/* ===== COLUNAS DO KANBAN ===== */
+.kanban-coluna {
+  min-width: 280px;
+  max-width: 280px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border-radius: var(--radius-xl);
+  padding: 16px;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 160px);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  transition: var(--transition);
+  position: relative;
+  z-index: 1;
+}
+
+.kanban-coluna:hover {
+  box-shadow: var(--shadow-xl);
+  transform: translateY(-2px);
+}
+
+.kanban-coluna-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-radius: var(--radius-lg);
+  margin-bottom: 12px;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  box-shadow: var(--shadow-sm);
+}
+
+.kanban-coluna-header h3 {
+  font-size: 14px;
+  font-weight: 700;
+  color: white;
+  margin: 0;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.kanban-coluna-badge {
+  background: rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(10px);
+  color: white;
+  border-radius: var(--radius-full);
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  box-shadow: var(--shadow-sm);
+}
+
+/* ===== CONTEÚDO DA COLUNA ===== */
+.kanban-coluna-content {
+  flex: 1;
+  min-height: 200px;
+  border-radius: var(--radius-md);
+  overflow: auto;
+  padding: 4px;
+  transition: var(--transition);
+  position: relative;
+  z-index: 0;
+}
+
+.kanban-coluna-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.kanban-coluna-content::-webkit-scrollbar-thumb {
+  background: var(--primary);
+  border-radius: var(--radius-md);
+}
+
+.kanban-coluna-content::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-dark);
+}
+
+/* ===== CARTÕES DO KANBAN ===== */
+.card-kanban {
+  background: white;
+  border-radius: var(--radius-lg);
+  padding: 14px;
+  margin-bottom: 10px;
+  font-size: 12px;
+  box-shadow: var(--shadow-md);
+  cursor: grab;
+  user-select: none;
+  transition: var(--transition);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.card-kanban:active {
+  cursor: grabbing;
+}
+
+.card-kanban:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: var(--shadow-lg);
+}
+
+.card-kanban.is-dragging {
+  z-index: 9999;
+  box-shadow: var(--shadow-xl);
+  opacity: 0;
+}
+
+/* ===== CARD PORTAL (DRAGGING GHOST) ===== */
+.card-kanban-ghost {
+  position: fixed;
+  pointer-events: none;
+  z-index: 9999;
+  background: white;
+  border-radius: var(--radius-lg);
+  padding: 14px;
+  font-size: 12px;
+  box-shadow: var(--shadow-xl);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  width: 280px;
+  max-height: 600px;
+  overflow: hidden;
+  transform: rotate(2deg);
+  opacity: 0.95;
+}
+
+/* ===== TOAST ===== */
+.toast {
+  position: fixed;
+  top: 20px;
+  right: 24px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: white;
+  box-shadow: var(--shadow-lg);
+  z-index: 3000;
+  animation: toast-in 160ms ease-out;
+}
+
+.toast-success {
+  background: linear-gradient(135deg, #16a34a, #22c55e);
+}
+
+.toast-error {
+  background: linear-gradient(135deg, #dc2626, #ef4444);
+}
+
+@keyframes toast-in {
+  from {
+    transform: translateY(-8px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* ===== CORES DAS ETAPAS (iOS Style) ===== */
+
+/* Backlog - Cinza neutro */
+.kanban-coluna.stage-backlog {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+}
+
+.kanban-coluna.stage-backlog .kanban-coluna-header {
+  background: linear-gradient(135deg, #6c757d, #495057);
+}
+
+/* Planejado - Azul claro */
+.kanban-coluna.stage-planejado {
+  background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+}
+
+.kanban-coluna.stage-planejado .kanban-coluna-header {
+  background: linear-gradient(135deg, #2196F3, #1976D2);
+}
+
+/* Em Estruturação - Roxo */
+.kanban-coluna.stage-estruturacao {
+  background: linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%);
+}
+
+.kanban-coluna.stage-estruturacao .kanban-coluna-header {
+  background: linear-gradient(135deg, #9C27B0, #7B1FA2);
+}
+
+/* Em Execução - Verde água */
+.kanban-coluna.stage-execucao {
+  background: linear-gradient(135deg, #e0f2f1 0%, #b2dfdb 100%);
+}
+
+.kanban-coluna.stage-execucao .kanban-coluna-header {
+  background: linear-gradient(135deg, #009688, #00796B);
+}
+
+/* Travado - Vermelho */
+.kanban-coluna.stage-travado {
+  background: linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%);
+}
+
+.kanban-coluna.stage-travado .kanban-coluna-header {
+  background: linear-gradient(135deg, #F44336, #D32F2F);
+}
+
+/* Validação - Laranja */
+.kanban-coluna.stage-validacao {
+  background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+}
+
+.kanban-coluna.stage-validacao .kanban-coluna-header {
+  background: linear-gradient(135deg, #FF9800, #F57C00);
+}
+
+/* Concluído - Verde */
+.kanban-coluna.stage-concluido {
+  background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+}
+
+.kanban-coluna.stage-concluido .kanban-coluna-header {
+  background: linear-gradient(135deg, var(--success), var(--success-dark));
+}
+
+/* ===== RESPONSIVIDADE ===== */
+@media (max-width: 768px) {
+  .kanban-container {
+    flex-direction: column;
+  }
+  
+  .kanban-coluna {
+    min-width: 100%;
+    max-width: 100%;
+    max-height: 400px;
+  }
+}
+
