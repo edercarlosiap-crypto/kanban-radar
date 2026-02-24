@@ -1,6 +1,8 @@
 const express = require('express');
 const cors = require('cors');
 const fileUpload = require('express-fileupload');
+const helmet = require('helmet');
+const compression = require('compression');
 
 const app = express();
 
@@ -12,6 +14,11 @@ const corsOrigins = (process.env.CORS_ORIGINS || 'http://localhost:3003')
 const allowAllOrigins = corsOrigins.includes('*');
 
 // Middleware
+app.use(helmet({
+  crossOriginResourcePolicy: false
+}));
+app.use(compression());
+
 app.use(cors({
   origin: allowAllOrigins ? true : corsOrigins,
   credentials: true

@@ -187,7 +187,16 @@ async function createPostgresSchema() {
     `ALTER TABLE regras_comissao ADD COLUMN IF NOT EXISTS meta2percentindividual REAL DEFAULT 0`,
     `ALTER TABLE regras_comissao ADD COLUMN IF NOT EXISTS meta3percentindividual REAL DEFAULT 0`,
     `ALTER TABLE colaboradores ADD COLUMN IF NOT EXISTS cpf TEXT`,
-    `ALTER TABLE colaboradores ADD COLUMN IF NOT EXISTS funcao_id TEXT`
+    `ALTER TABLE colaboradores ADD COLUMN IF NOT EXISTS funcao_id TEXT`,
+    `CREATE INDEX IF NOT EXISTS idx_usuarios_email ON usuarios(email)`,
+    `CREATE INDEX IF NOT EXISTS idx_colaboradores_regional ON colaboradores(regional_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_colaboradores_funcao ON colaboradores(funcao_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_regras_regional_periodo ON regras_comissao(regionalid, periodo)`,
+    `CREATE INDEX IF NOT EXISTS idx_regras_tipometa ON regras_comissao(tipometa)`,
+    `CREATE INDEX IF NOT EXISTS idx_vendas_mensais_periodo ON vendas_mensais(periodo)`,
+    `CREATE INDEX IF NOT EXISTS idx_vendas_mensais_regional ON vendas_mensais(regional_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_vendas_mensais_vendedor ON vendas_mensais(vendedor_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_churn_periodo_regional ON churn_regionais(periodo, regional_id)`
   ];
 
   for (const sql of statements) {
@@ -359,6 +368,15 @@ function createSqliteSchema() {
     sqliteDb.run('ALTER TABLE regras_comissao ADD COLUMN meta1PercentIndividual REAL DEFAULT 0', () => {});
     sqliteDb.run('ALTER TABLE regras_comissao ADD COLUMN meta2PercentIndividual REAL DEFAULT 0', () => {});
     sqliteDb.run('ALTER TABLE regras_comissao ADD COLUMN meta3PercentIndividual REAL DEFAULT 0', () => {});
+    sqliteDb.run('CREATE INDEX IF NOT EXISTS idx_usuarios_email ON usuarios(email)');
+    sqliteDb.run('CREATE INDEX IF NOT EXISTS idx_colaboradores_regional ON colaboradores(regional_id)');
+    sqliteDb.run('CREATE INDEX IF NOT EXISTS idx_colaboradores_funcao ON colaboradores(funcao_id)');
+    sqliteDb.run('CREATE INDEX IF NOT EXISTS idx_regras_regional_periodo ON regras_comissao(regionalId, periodo)');
+    sqliteDb.run('CREATE INDEX IF NOT EXISTS idx_regras_tipometa ON regras_comissao(tipoMeta)');
+    sqliteDb.run('CREATE INDEX IF NOT EXISTS idx_vendas_mensais_periodo ON vendas_mensais(periodo)');
+    sqliteDb.run('CREATE INDEX IF NOT EXISTS idx_vendas_mensais_regional ON vendas_mensais(regional_id)');
+    sqliteDb.run('CREATE INDEX IF NOT EXISTS idx_vendas_mensais_vendedor ON vendas_mensais(vendedor_id)');
+    sqliteDb.run('CREATE INDEX IF NOT EXISTS idx_churn_periodo_regional ON churn_regionais(periodo, regional_id)');
 
     sqliteDb.get('SELECT COUNT(*) as total FROM tipos_meta', (err, row) => {
       if (err || !row || row.total !== 0) return;
