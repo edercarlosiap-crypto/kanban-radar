@@ -1,0 +1,194 @@
+.ativacoes-churn-page {
+  display: grid;
+  gap: 16px;
+}
+
+.upload-row {
+  display: grid;
+  gap: 8px;
+}
+
+.form-input-file {
+  border: 1px solid var(--border, #d0d7de);
+  border-radius: 12px;
+  padding: 10px;
+  background: #fff;
+}
+
+.arquivo-nome,
+.arquivo-info {
+  margin: 0;
+  color: var(--text-secondary, #5f6b7a);
+  font-size: 13px;
+}
+
+.empty-state {
+  border: 1px dashed #cbd5e1;
+  border-radius: 14px;
+  padding: 18px;
+  color: #64748b;
+  background: #f8fafc;
+  text-align: center;
+}
+
+.table-wrap {
+  overflow: auto;
+  border: 1px solid #cbd5e1;
+  border-radius: 14px;
+  background: #ffffff;
+}
+
+.tendencia-chart-card {
+  border: 1px solid #dbe1ea;
+  border-radius: 14px;
+  background: #fff;
+  padding: 14px;
+}
+
+.tendencia-chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.tendencia-chart-header h3 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.tendencia-chart-header p {
+  margin: 4px 0 0 0;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.tendencia-chart-filtros {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.tendencia-chart-filtros > div {
+  min-width: 160px;
+}
+
+.tendencia-chart-area {
+  width: 100%;
+  height: 340px;
+}
+
+.tendencia-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.tendencia-kpi-item {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 12px;
+  background: #f8fafc;
+}
+
+.tendencia-kpi-item span {
+  display: block;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.tendencia-kpi-item strong {
+  font-size: 22px;
+  color: #0f172a;
+}
+
+.table-layout-excel {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.table-layout-excel td {
+  border: 1px solid #dbe1ea;
+  padding: 7px 8px;
+  font-size: 12px;
+  color: #0f172a;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.table-layout-excel .cell-header {
+  background: #eef2f7;
+  font-weight: 700;
+}
+
+.table-layout-excel .row-header td {
+  background: #e5ebf3;
+}
+
+.table-layout-excel .row-total td {
+  font-weight: 700;
+  background: #f8fafc;
+}
+
+.table-layout-excel .cell-total-label {
+  font-weight: 700;
+}
+
+.table-layout-excel .col-bloco {
+  font-weight: 700;
+  text-align: center;
+  background: #edf1f7;
+}
+
+.table-layout-excel .col-side {
+  background: #fcfdff;
+}
+
+.table-layout-excel .side-header {
+  background: #f4f7fb;
+  font-weight: 700;
+}
+
+.table-layout-excel .kpi-percent {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 999px;
+  padding: 1px 8px;
+  font-weight: 700;
+}
+
+.table-layout-excel .kpi-icon {
+  font-size: 11px;
+  line-height: 1;
+}
+
+.table-layout-excel .kpi-bom {
+  color: #047857;
+  background: #ecfdf5;
+}
+
+.table-layout-excel .kpi-alerta {
+  color: #b45309;
+  background: #fffbeb;
+}
+
+.table-layout-excel .kpi-critico {
+  color: #b91c1c;
+  background: #fef2f2;
+}
+
+@media (max-width: 980px) {
+  .tendencia-chart-area {
+    height: 300px;
+  }
+
+  .table-layout-excel td {
+    font-size: 11px;
+    padding: 6px 7px;
+  }
+}

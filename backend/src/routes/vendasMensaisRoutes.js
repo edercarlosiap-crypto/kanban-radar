@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { autenticar, apenasGestorOuSuperior } = require('../middleware/auth');
+const { autenticar } = require('../middleware/auth');
 const vendasMensaisController = require('../controllers/vendasMensaisController');
 
 router.use(autenticar);
@@ -19,11 +19,13 @@ router.get('/:id', vendasMensaisController.buscar);
 
 // POST /api/vendas-mensais
 router.post('/', vendasMensaisController.criar);
+router.post('/lote', vendasMensaisController.importarLote);
+router.post('/importar-pdf-evento', vendasMensaisController.importarPdfEvento);
 
 // PUT /api/vendas-mensais/:id
 router.put('/:id', vendasMensaisController.atualizar);
 
 // DELETE /api/vendas-mensais/:id
-router.delete('/:id', apenasGestorOuSuperior, vendasMensaisController.deletar);
+router.delete('/:id', vendasMensaisController.deletar);
 
 module.exports = router;

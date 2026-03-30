@@ -327,6 +327,7 @@ export default function RelatorioVendasPage() {
         telefoniaVolume: vendaRegional.telefonia_volume,
         telefoniaFinanceiro: vendaRegional.telefonia_financeiro,
         churn: churnReg?.churn || 0,
+        churnProj: churnReg?.churn || 0,
         duAteHoje,
         totalDU,
         percentualDU,
@@ -337,9 +338,11 @@ export default function RelatorioVendasPage() {
       if (ehMesAtual && totalDU > 0 && duAteHoje > 0) {
         const velocidade = totalVolume / duAteHoje;
         const velocidadeFinanceiro = totalFinanceiro / duAteHoje;
+        const velocidadeChurn = (metricas.churn || 0) / duAteHoje;
 
         metricas.totalVolumeProj = Math.round(velocidade * totalDU);
         metricas.totalFinanceiroProj = Math.round(velocidadeFinanceiro * totalDU);
+        metricas.churnProj = Number((velocidadeChurn * totalDU).toFixed(2));
       }
 
       return metricas;
@@ -392,6 +395,21 @@ export default function RelatorioVendasPage() {
     localStorage.removeItem('usuario');
     navigate('/login');
   };
+
+  const valorProjetadoDetalhe = (valor, regiao) => {
+    const numero = Number(valor || 0);
+    if (!relatorioData.ehMesAtual) return numero;
+    const duAteHoje = Number(regiao?.duAteHoje || 0);
+    const totalDU = Number(regiao?.totalDU || 0);
+    if (duAteHoje <= 0 || totalDU <= 0) return numero;
+    return numero * (totalDU / duAteHoje);
+  };
+
+  const volumeDetalheExibido = (valor, regiao) => (
+    relatorioData.ehMesAtual
+      ? Math.round(valorProjetadoDetalhe(valor, regiao))
+      : Number(valor || 0)
+  );
 
   // Períodos disponíveis (últimos 6 meses)
   const periodosDisponiveis = useMemo(() => {
@@ -468,7 +486,7 @@ export default function RelatorioVendasPage() {
 
           {relatorioData.ehMesAtual && (
             <div className="alert alert-info" style={{ marginBottom: '20px' }}>
-              📅 <strong>Mês Atual (Jan/26)</strong> - Dias úteis até hoje: <strong>{relatorioData.duAteHoje.toFixed(1)}</strong> de <strong>{relatorioData.totalDU.toFixed(1)}</strong> ({relatorioData.percentualDU.toFixed(1)}%)
+              📅 <strong>Mês Atual ({filtroPeriodo})</strong> - Dias úteis até hoje: <strong>{relatorioData.duAteHoje.toFixed(1)}</strong> de <strong>{relatorioData.totalDU.toFixed(1)}</strong> ({relatorioData.percentualDU.toFixed(1)}%)
             </div>
           )}
 
@@ -483,21 +501,15 @@ export default function RelatorioVendasPage() {
               <thead>
                 <tr>
                   <th>Regional</th>
-                  <th>{relatorioData.ehMesAtual ? 'Total (Real)' : 'Total'}</th>
-                  <th>{relatorioData.ehMesAtual ? 'R$ (Real)' : 'R$'}</th>
-                  {relatorioData.ehMesAtual && (
-                    <>
-                      <th>Total (Projeção)</th>
-                      <th>R$ (Projeção)</th>
-                    </>
-                  )}
-                  <th>Churn</th>
+                  <th>{relatorioData.ehMesAtual ? 'Total (Projecao)' : 'Total'}</th>
+                  <th>{relatorioData.ehMesAtual ? 'R$ (Projecao)' : 'R$'}</th>
+                  <th>{relatorioData.ehMesAtual ? 'Churn (Projecao)' : 'Churn'}</th>
                 </tr>
               </thead>
               <tbody>
                 {relatorioData.relatorio.length === 0 ? (
                   <tr>
-                    <td colSpan={relatorioData.ehMesAtual ? 6 : 4} style={{ textAlign: 'center' }}>
+                    <td colSpan={4} style={{ textAlign: 'center' }}>
                       Sem dados para este período
                     </td>
                   </tr>
@@ -507,20 +519,14 @@ export default function RelatorioVendasPage() {
                     .map((regiao, idx) => (
                       <tr key={idx} style={{ background: regiao.status === 'vazio' ? '#f9f9f9' : 'inherit' }}>
                         <td style={{ fontWeight: '500' }}>{regiao.regional}</td>
-                        <td>{regiao.totalVolume.toLocaleString('pt-BR')}</td>
-                        <td>R$ {regiao.totalFinanceiro.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                        {relatorioData.ehMesAtual && (
-                          <>
-                            <td style={{ color: 'var(--primary)', fontWeight: '500' }}>
-                              {regiao.totalVolumeProj.toLocaleString('pt-BR')}
-                            </td>
-                            <td style={{ color: 'var(--primary)', fontWeight: '500' }}>
-                              R$ {regiao.totalFinanceiroProj.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                            </td>
-                          </>
-                        )}
-                        <td style={{ color: regiao.churn > 5 ? '#ff6b6b' : 'inherit' }}>
-                          {(regiao.churn || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        <td style={relatorioData.ehMesAtual ? { color: 'var(--primary)', fontWeight: '500' } : undefined}>
+                          {(relatorioData.ehMesAtual ? regiao.totalVolumeProj : regiao.totalVolume).toLocaleString('pt-BR')}
+                        </td>
+                        <td style={relatorioData.ehMesAtual ? { color: 'var(--primary)', fontWeight: '500' } : undefined}>
+                          R$ {(relatorioData.ehMesAtual ? regiao.totalFinanceiroProj : regiao.totalFinanceiro).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </td>
+                        <td style={{ color: (relatorioData.ehMesAtual ? (regiao.churnProj || 0) : (regiao.churn || 0)) > 5 ? '#ff6b6b' : 'inherit' }}>
+                          {(relatorioData.ehMesAtual ? (regiao.churnProj || 0) : (regiao.churn || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                         </td>
                       </tr>
                     ))
@@ -582,32 +588,32 @@ export default function RelatorioVendasPage() {
                                 {regiao.regional}
                               </td>
                               <td>
-                                <div style={{ fontSize: '12px', color: '#666' }}>V: {regiao.vendasVolume}</div>
-                                <div style={{ fontSize: '12px', fontWeight: '500' }}>R$: {regiao.vendasFinanceiro.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</div>
+                                <div style={{ fontSize: '12px', color: '#666' }}>V: {volumeDetalheExibido(regiao.vendasVolume, regiao)}</div>
+                                <div style={{ fontSize: '12px', fontWeight: '500' }}>R$: {valorProjetadoDetalhe(regiao.vendasFinanceiro, regiao).toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</div>
                               </td>
                               <td>
-                                <div style={{ fontSize: '12px', color: '#666' }}>V: {regiao.mudancaTitularidadeVolume}</div>
-                                <div style={{ fontSize: '12px', fontWeight: '500' }}>R$: {regiao.mudancaTitularidadeFinanceiro.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</div>
+                                <div style={{ fontSize: '12px', color: '#666' }}>V: {volumeDetalheExibido(regiao.mudancaTitularidadeVolume, regiao)}</div>
+                                <div style={{ fontSize: '12px', fontWeight: '500' }}>R$: {valorProjetadoDetalhe(regiao.mudancaTitularidadeFinanceiro, regiao).toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</div>
                               </td>
                               <td>
-                                <div style={{ fontSize: '12px', color: '#666' }}>V: {regiao.migracaoTecnologiaVolume}</div>
-                                <div style={{ fontSize: '12px', fontWeight: '500' }}>R$: {regiao.migracaoTecnologiaFinanceiro.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</div>
+                                <div style={{ fontSize: '12px', color: '#666' }}>V: {volumeDetalheExibido(regiao.migracaoTecnologiaVolume, regiao)}</div>
+                                <div style={{ fontSize: '12px', fontWeight: '500' }}>R$: {valorProjetadoDetalhe(regiao.migracaoTecnologiaFinanceiro, regiao).toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</div>
                               </td>
                               <td>
-                                <div style={{ fontSize: '12px', color: '#666' }}>V: {regiao.renovacaoVolume}</div>
-                                <div style={{ fontSize: '12px', fontWeight: '500' }}>R$: {regiao.renovacaoFinanceiro.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</div>
+                                <div style={{ fontSize: '12px', color: '#666' }}>V: {volumeDetalheExibido(regiao.renovacaoVolume, regiao)}</div>
+                                <div style={{ fontSize: '12px', fontWeight: '500' }}>R$: {valorProjetadoDetalhe(regiao.renovacaoFinanceiro, regiao).toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</div>
                               </td>
                               <td>
-                                <div style={{ fontSize: '12px', color: '#666' }}>V: {regiao.planoEventoVolume}</div>
-                                <div style={{ fontSize: '12px', fontWeight: '500' }}>R$: {regiao.planoEventoFinanceiro.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</div>
+                                <div style={{ fontSize: '12px', color: '#666' }}>V: {volumeDetalheExibido(regiao.planoEventoVolume, regiao)}</div>
+                                <div style={{ fontSize: '12px', fontWeight: '500' }}>R$: {valorProjetadoDetalhe(regiao.planoEventoFinanceiro, regiao).toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</div>
                               </td>
                               <td>
-                                <div style={{ fontSize: '12px', color: '#666' }}>V: {regiao.svaVolume}</div>
-                                <div style={{ fontSize: '12px', fontWeight: '500' }}>R$: {regiao.svaFinanceiro.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</div>
+                                <div style={{ fontSize: '12px', color: '#666' }}>V: {volumeDetalheExibido(regiao.svaVolume, regiao)}</div>
+                                <div style={{ fontSize: '12px', fontWeight: '500' }}>R$: {valorProjetadoDetalhe(regiao.svaFinanceiro, regiao).toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</div>
                               </td>
                               <td>
-                                <div style={{ fontSize: '12px', color: '#666' }}>V: {regiao.telefoniaVolume}</div>
-                                <div style={{ fontSize: '12px', fontWeight: '500' }}>R$: {regiao.telefoniaFinanceiro.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</div>
+                                <div style={{ fontSize: '12px', color: '#666' }}>V: {volumeDetalheExibido(regiao.telefoniaVolume, regiao)}</div>
+                                <div style={{ fontSize: '12px', fontWeight: '500' }}>R$: {valorProjetadoDetalhe(regiao.telefoniaFinanceiro, regiao).toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</div>
                               </td>
                             </tr>
                             {regionaisExpandidas.has(regiao.regionalId) &&
@@ -615,32 +621,32 @@ export default function RelatorioVendasPage() {
                                 <tr key={`${regiao.regionalId}-${vendedor.vendedorId}`} style={{ background: '#fafafa' }}>
                                   <td style={{ paddingLeft: '24px', color: '#666' }}>↳ {vendedor.vendedorNome}</td>
                                   <td>
-                                    <div style={{ fontSize: '12px', color: '#666' }}>V: {vendedor.vendas_volume}</div>
-                                    <div style={{ fontSize: '12px', fontWeight: '500' }}>R$: {vendedor.vendas_financeiro.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</div>
+                                    <div style={{ fontSize: '12px', color: '#666' }}>V: {volumeDetalheExibido(vendedor.vendas_volume, regiao)}</div>
+                                    <div style={{ fontSize: '12px', fontWeight: '500' }}>R$: {valorProjetadoDetalhe(vendedor.vendas_financeiro, regiao).toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</div>
                                   </td>
                                   <td>
-                                    <div style={{ fontSize: '12px', color: '#666' }}>V: {vendedor.mudanca_titularidade_volume}</div>
-                                    <div style={{ fontSize: '12px', fontWeight: '500' }}>R$: {vendedor.mudanca_titularidade_financeiro.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</div>
+                                    <div style={{ fontSize: '12px', color: '#666' }}>V: {volumeDetalheExibido(vendedor.mudanca_titularidade_volume, regiao)}</div>
+                                    <div style={{ fontSize: '12px', fontWeight: '500' }}>R$: {valorProjetadoDetalhe(vendedor.mudanca_titularidade_financeiro, regiao).toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</div>
                                   </td>
                                   <td>
-                                    <div style={{ fontSize: '12px', color: '#666' }}>V: {vendedor.migracao_tecnologia_volume}</div>
-                                    <div style={{ fontSize: '12px', fontWeight: '500' }}>R$: {vendedor.migracao_tecnologia_financeiro.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</div>
+                                    <div style={{ fontSize: '12px', color: '#666' }}>V: {volumeDetalheExibido(vendedor.migracao_tecnologia_volume, regiao)}</div>
+                                    <div style={{ fontSize: '12px', fontWeight: '500' }}>R$: {valorProjetadoDetalhe(vendedor.migracao_tecnologia_financeiro, regiao).toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</div>
                                   </td>
                                   <td>
-                                    <div style={{ fontSize: '12px', color: '#666' }}>V: {vendedor.renovacao_volume}</div>
-                                    <div style={{ fontSize: '12px', fontWeight: '500' }}>R$: {vendedor.renovacao_financeiro.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</div>
+                                    <div style={{ fontSize: '12px', color: '#666' }}>V: {volumeDetalheExibido(vendedor.renovacao_volume, regiao)}</div>
+                                    <div style={{ fontSize: '12px', fontWeight: '500' }}>R$: {valorProjetadoDetalhe(vendedor.renovacao_financeiro, regiao).toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</div>
                                   </td>
                                   <td>
-                                    <div style={{ fontSize: '12px', color: '#666' }}>V: {vendedor.plano_evento_volume}</div>
-                                    <div style={{ fontSize: '12px', fontWeight: '500' }}>R$: {vendedor.plano_evento_financeiro.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</div>
+                                    <div style={{ fontSize: '12px', color: '#666' }}>V: {volumeDetalheExibido(vendedor.plano_evento_volume, regiao)}</div>
+                                    <div style={{ fontSize: '12px', fontWeight: '500' }}>R$: {valorProjetadoDetalhe(vendedor.plano_evento_financeiro, regiao).toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</div>
                                   </td>
                                   <td>
-                                    <div style={{ fontSize: '12px', color: '#666' }}>V: {vendedor.sva_volume}</div>
-                                    <div style={{ fontSize: '12px', fontWeight: '500' }}>R$: {vendedor.sva_financeiro.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</div>
+                                    <div style={{ fontSize: '12px', color: '#666' }}>V: {volumeDetalheExibido(vendedor.sva_volume, regiao)}</div>
+                                    <div style={{ fontSize: '12px', fontWeight: '500' }}>R$: {valorProjetadoDetalhe(vendedor.sva_financeiro, regiao).toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</div>
                                   </td>
                                   <td>
-                                    <div style={{ fontSize: '12px', color: '#666' }}>V: {vendedor.telefonia_volume}</div>
-                                    <div style={{ fontSize: '12px', fontWeight: '500' }}>R$: {vendedor.telefonia_financeiro.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</div>
+                                    <div style={{ fontSize: '12px', color: '#666' }}>V: {volumeDetalheExibido(vendedor.telefonia_volume, regiao)}</div>
+                                    <div style={{ fontSize: '12px', fontWeight: '500' }}>R$: {valorProjetadoDetalhe(vendedor.telefonia_financeiro, regiao).toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</div>
                                   </td>
                                 </tr>
                               ))}
@@ -658,47 +664,30 @@ export default function RelatorioVendasPage() {
           {relatorioData.relatorio.length > 0 && (
             <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid #e0e0e0', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '16px' }}>
               <div style={{ padding: '12px', background: '#f5f5f5', borderRadius: '8px' }}>
-                <p style={{ margin: '0 0 8px 0', color: '#666', fontSize: '12px', fontWeight: '500' }}>Total Vendas (Volume)</p>
+                <p style={{ margin: '0 0 8px 0', color: '#666', fontSize: '12px', fontWeight: '500' }}>{relatorioData.ehMesAtual ? 'Total Vendas (Volume Projetado)' : 'Total Vendas (Volume)'}</p>
                 <p style={{ margin: 0, fontSize: '18px', fontWeight: '700' }}>
                   {relatorioData.relatorio
                     .filter(r => !filtroRegional || r.regionalId === filtroRegional)
-                    .reduce((acc, r) => acc + r.totalVolume, 0).toLocaleString('pt-BR')}
+                    .reduce((acc, r) => acc + (relatorioData.ehMesAtual ? r.totalVolumeProj : r.totalVolume), 0).toLocaleString('pt-BR')}
                 </p>
               </div>
               <div style={{ padding: '12px', background: '#f5f5f5', borderRadius: '8px' }}>
-                <p style={{ margin: '0 0 8px 0', color: '#666', fontSize: '12px', fontWeight: '500' }}>Total Vendas (R$)</p>
+                <p style={{ margin: '0 0 8px 0', color: '#666', fontSize: '12px', fontWeight: '500' }}>{relatorioData.ehMesAtual ? 'Total Vendas (R$ Projetado)' : 'Total Vendas (R$)'}</p>
                 <p style={{ margin: 0, fontSize: '18px', fontWeight: '700' }}>
                   R$ {relatorioData.relatorio
                     .filter(r => !filtroRegional || r.regionalId === filtroRegional)
-                    .reduce((acc, r) => acc + r.totalFinanceiro, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    .reduce((acc, r) => acc + (relatorioData.ehMesAtual ? r.totalFinanceiroProj : r.totalFinanceiro), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </p>
               </div>
-              {relatorioData.ehMesAtual && (
-                <>
-                  <div style={{ padding: '12px', background: '#e3f2fd', borderRadius: '8px' }}>
-                    <p style={{ margin: '0 0 8px 0', color: '#666', fontSize: '12px', fontWeight: '500' }}>Projeção Volume</p>
-                    <p style={{ margin: 0, fontSize: '18px', fontWeight: '700', color: 'var(--primary)' }}>
-                      {relatorioData.relatorio
-                        .filter(r => !filtroRegional || r.regionalId === filtroRegional)
-                        .reduce((acc, r) => acc + r.totalVolumeProj, 0).toLocaleString('pt-BR')}
-                    </p>
-                  </div>
-                  <div style={{ padding: '12px', background: '#e3f2fd', borderRadius: '8px' }}>
-                    <p style={{ margin: '0 0 8px 0', color: '#666', fontSize: '12px', fontWeight: '500' }}>Projeção Financeiro</p>
-                    <p style={{ margin: 0, fontSize: '18px', fontWeight: '700', color: 'var(--primary)' }}>
-                      R$ {relatorioData.relatorio
-                        .filter(r => !filtroRegional || r.regionalId === filtroRegional)
-                        .reduce((acc, r) => acc + r.totalFinanceiroProj, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </p>
-                  </div>
-                </>
-              )}
               <div style={{ padding: '12px', background: '#fff3cd', borderRadius: '8px' }}>
-                <p style={{ margin: '0 0 8px 0', color: '#666', fontSize: '12px', fontWeight: '500' }}>Churn Total</p>
+                <p style={{ margin: '0 0 8px 0', color: '#666', fontSize: '12px', fontWeight: '500' }}>
+                  {relatorioData.ehMesAtual ? 'Churn (Projecao)' : 'Churn Total'}
+                </p>
                 <p style={{ margin: 0, fontSize: '18px', fontWeight: '700' }}>
                   {relatorioData.relatorio
                     .filter(r => !filtroRegional || r.regionalId === filtroRegional)
-                    .reduce((acc, r) => acc + r.churn, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    .reduce((acc, r) => acc + (relatorioData.ehMesAtual ? (r.churnProj || 0) : (r.churn || 0)), 0)
+                    .toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </p>
               </div>
             </div>
@@ -708,3 +697,6 @@ export default function RelatorioVendasPage() {
     </div>
   );
 }
+
+
+

@@ -35,9 +35,9 @@ class ChurnRegional {
     const id = uuidv4();
 
     await db_run(
-      `INSERT INTO churn_regionais (id, periodo, regional_id, churn, dataAtualizacao)
-       VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)`,
-      [id, dados.periodo, dados.regionalId, dados.churn]
+      `INSERT INTO churn_regionais (id, periodo, regional_id, churn, base_ref, cancelados_churn, dataAtualizacao)
+       VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+      [id, dados.periodo, dados.regionalId, dados.churn, dados.baseRef || 0, dados.canceladosChurn || 0]
     );
 
     return id;
@@ -49,9 +49,11 @@ class ChurnRegional {
         periodo = ?,
         regional_id = ?,
         churn = ?,
+        base_ref = ?,
+        cancelados_churn = ?,
         dataAtualizacao = CURRENT_TIMESTAMP
       WHERE id = ?`,
-      [dados.periodo, dados.regionalId, dados.churn, id]
+      [dados.periodo, dados.regionalId, dados.churn, dados.baseRef || 0, dados.canceladosChurn || 0, id]
     );
 
     return result.changes;

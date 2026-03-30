@@ -1,29 +1,36 @@
 {
-    "name":  "comissao-radar-backend",
-    "version":  "1.0.0",
-    "description":  "Backend do Sistema de Cálculo de Comissão",
-    "main":  "src/server.js",
-    "scripts":  {
-                    "start":  "node src/server.js",
-                    "dev":  "nodemon src/server.js",
-                    "seed":  "node seed.js",
-                    "setup-db":  "node setup-db.js"
-                },
-    "dependencies":  {
-                         "bcryptjs":  "^2.4.3",
-                         "compression":  "^1.7.4",
-                         "cors":  "^2.8.5",
-                         "dotenv":  "^16.0.3",
-                         "express":  "^4.18.2",
-                         "express-fileupload":  "^1.4.0",
-                         "helmet":  "^7.1.0",
-                         "jsonwebtoken":  "^9.0.0",
-                         "pg":  "^8.12.0",
-                         "sqlite3":  "^5.1.7",
-                         "uuid":  "^8.3.2",
-                         "xlsx":  "^0.18.5"
-                     },
-    "devDependencies":  {
-                            "nodemon":  "^2.0.20"
-                        }
+    "name": "comissao-radar-backend",
+    "version": "1.0.0",
+    "description": "Backend do Sistema de Cálculo de Comissão",
+    "main": "src/server.js",
+    "scripts": {
+        "start": "node src/server.js",
+        "dev": "nodemon src/server.js",
+        "seed": "node seed.js",
+        "setup-db": "node setup-db.js",
+        "db:backup": "node scripts/backup-sqlite.js",
+        "db:migrate:postgres": "node scripts/migrate_sqlite_to_postgres.js",
+        "db:migrate:postgres:replace": "node scripts/migrate_sqlite_to_postgres.js --replace",
+        "db:migrate:postgres:dry": "node scripts/migrate_sqlite_to_postgres.js --dry-run",
+        "db:audit": "node scripts/db-audit.js",
+        "db:harden": "node scripts/db-harden.js"
+    },
+    "dependencies": {
+        "bcryptjs": "^2.4.3",
+        "compression": "^1.7.4",
+        "cors": "^2.8.5",
+        "dotenv": "^16.0.3",
+        "express": "^4.18.2",
+        "express-fileupload": "^1.4.0",
+        "helmet": "^7.1.0",
+        "jsonwebtoken": "^9.0.0",
+        "pdf-parse": "^1.1.1",
+        "pg": "^8.12.0",
+        "sqlite3": "^5.1.7",
+        "uuid": "^8.3.2",
+        "xlsx": "^0.18.5"
+    },
+    "devDependencies": {
+        "nodemon": "^2.0.20"
+    }
 }

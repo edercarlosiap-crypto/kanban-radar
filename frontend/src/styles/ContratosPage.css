@@ -1,0 +1,117 @@
+.contratos-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.contratos-actions input[type='file'],
+.contratos-actions input[type='month'] {
+  min-height: 38px;
+}
+
+.contratos-filtros {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.contratos-filtros select {
+  min-height: 38px;
+  border: 1px solid #d4d7dd;
+  border-radius: 10px;
+  padding: 0 10px;
+  background: #fff;
+}
+
+.contratos-segmento-box {
+  margin-top: 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 12px;
+  background: #f8fafc;
+}
+
+.contratos-segmento-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.contratos-segmentos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.contratos-segmento-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 13px;
+}
+
+.contratos-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.contratos-kpi-card {
+  background: #f7f8fb;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.contratos-kpi-card span {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.contratos-kpi-card strong {
+  font-size: 26px;
+  color: #111827;
+}
+
+.contratos-chart {
+  width: 100%;
+  min-height: 320px;
+}
+
+.contratos-chart-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.contratos-chart-type-select {
+  min-height: 34px !important;
+  height: 34px !important;
+  min-width: 130px !important;
+  width: 130px;
+  padding: 4px 28px 4px 10px !important;
+  font-size: 13px;
+  border-radius: 10px !important;
+}
+
+.contratos-filtros-acoes {
+  margin-top: 12px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}

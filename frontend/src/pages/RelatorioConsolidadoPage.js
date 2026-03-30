@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api, { comissionamentoAPI, regionaisAPI } from '../services/api';
 import LogoImage from '../components/LogoImage';
@@ -22,7 +22,9 @@ const RelatorioConsolidadoPage = () => {
   const [erro, setErro] = useState('');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
-  const carregarPeriodos = async () => {
+  const valorConsiderado = (valor) => Number(valor || 0);
+
+  const carregarPeriodos = useCallback(async () => {
     try {
       setCarregandoMetas(true);
       const [metasResp, regionaisResp] = await Promise.all([
@@ -59,9 +61,9 @@ const RelatorioConsolidadoPage = () => {
     } finally {
       setCarregandoMetas(false);
     }
-  };
+  }, []);
 
-  const carregarConsolidado = async () => {
+  const carregarConsolidado = useCallback(async () => {
     if (!periodoSelecionado || regionaisDisponiveis.length === 0) {
       setDadosConsolidado(null);
       return;
@@ -128,15 +130,15 @@ const RelatorioConsolidadoPage = () => {
     } finally {
       setCarregandoConsolidado(false);
     }
-  };
+  }, [periodoSelecionado, regionalSelecionada, regionaisDisponiveis]);
 
   useEffect(() => {
     carregarPeriodos();
-  }, []);
+  }, [carregarPeriodos]);
 
   useEffect(() => {
     carregarConsolidado();
-  }, [periodoSelecionado, regionalSelecionada, regionaisDisponiveis]);
+  }, [carregarConsolidado]);
 
   // Dados já consolidados e filtrados
   const dadosFiltrados = useMemo(() => {
@@ -157,14 +159,14 @@ const RelatorioConsolidadoPage = () => {
     };
 
     linhas.forEach(linha => {
-      totais.vendas += Number(linha.comissaoVendas) || 0;
-      totais.churn += Number(linha.comissaoChurn) || 0;
-      totais.mudanca += Number(linha.comissaoMudancaTitularidade) || 0;
-      totais.migracao += Number(linha.comissaoMigracaoTecnologia) || 0;
-      totais.renovacao += Number(linha.comissaoRenovacao) || 0;
-      totais.planoEvento += Number(linha.comissaoPlanoEvento) || 0;
-      totais.sva += Number(linha.comissaoSVA) || 0;
-      totais.telefonia += Number(linha.comissaoTelefonia) || 0;
+      totais.vendas += valorConsiderado(linha.comissaoVendas);
+      totais.churn += valorConsiderado(linha.comissaoChurn);
+      totais.mudanca += valorConsiderado(linha.comissaoMudancaTitularidade);
+      totais.migracao += valorConsiderado(linha.comissaoMigracaoTecnologia);
+      totais.renovacao += valorConsiderado(linha.comissaoRenovacao);
+      totais.planoEvento += valorConsiderado(linha.comissaoPlanoEvento);
+      totais.sva += valorConsiderado(linha.comissaoSVA);
+      totais.telefonia += valorConsiderado(linha.comissaoTelefonia);
     });
 
     return totais;
@@ -306,27 +308,27 @@ const RelatorioConsolidadoPage = () => {
                     </thead>
                     <tbody>
                       {dadosFiltrados.linhas.map((linha, index) => {
-                        const totalLinha = (Number(linha.comissaoVendas) || 0) +
-                                          (Number(linha.comissaoChurn) || 0) +
-                                          (Number(linha.comissaoMudancaTitularidade) || 0) +
-                                          (Number(linha.comissaoMigracaoTecnologia) || 0) +
-                                          (Number(linha.comissaoRenovacao) || 0) +
-                                          (Number(linha.comissaoPlanoEvento) || 0) +
-                                          (Number(linha.comissaoSVA) || 0) +
-                                          (Number(linha.comissaoTelefonia) || 0);
+                        const totalLinha = valorConsiderado(linha.comissaoVendas) +
+                                          valorConsiderado(linha.comissaoChurn) +
+                                          valorConsiderado(linha.comissaoMudancaTitularidade) +
+                                          valorConsiderado(linha.comissaoMigracaoTecnologia) +
+                                          valorConsiderado(linha.comissaoRenovacao) +
+                                          valorConsiderado(linha.comissaoPlanoEvento) +
+                                          valorConsiderado(linha.comissaoSVA) +
+                                          valorConsiderado(linha.comissaoTelefonia);
 
                         return (
                           <tr key={index} style={{ borderBottom: '1px solid var(--border-color)', fontSize: '0.75rem' }}>
                             <td style={{ textAlign: 'center', padding: '6px', fontWeight: '500' }}><strong>{linha.regional}</strong></td>
                             <td style={{ textAlign: 'center', padding: '6px' }}>{linha.vendedor}</td>
-                            <td style={{ textAlign: 'center', padding: '6px' }}>R$ {formatNumero(linha.comissaoVendas)}</td>
-                            <td style={{ textAlign: 'center', padding: '6px' }}>R$ {formatNumero(linha.comissaoChurn)}</td>
-                            <td style={{ textAlign: 'center', padding: '6px' }}>R$ {formatNumero(linha.comissaoMudancaTitularidade)}</td>
-                            <td style={{ textAlign: 'center', padding: '6px' }}>R$ {formatNumero(linha.comissaoMigracaoTecnologia)}</td>
-                            <td style={{ textAlign: 'center', padding: '6px' }}>R$ {formatNumero(linha.comissaoRenovacao)}</td>
-                            <td style={{ textAlign: 'center', padding: '6px' }}>R$ {formatNumero(linha.comissaoPlanoEvento)}</td>
-                            <td style={{ textAlign: 'center', padding: '6px' }}>R$ {formatNumero(linha.comissaoSVA)}</td>
-                            <td style={{ textAlign: 'center', padding: '6px' }}>R$ {formatNumero(linha.comissaoTelefonia)}</td>
+                            <td style={{ textAlign: 'center', padding: '6px' }}>R$ {formatNumero(valorConsiderado(linha.comissaoVendas))}</td>
+                            <td style={{ textAlign: 'center', padding: '6px' }}>R$ {formatNumero(valorConsiderado(linha.comissaoChurn))}</td>
+                            <td style={{ textAlign: 'center', padding: '6px' }}>R$ {formatNumero(valorConsiderado(linha.comissaoMudancaTitularidade))}</td>
+                            <td style={{ textAlign: 'center', padding: '6px' }}>R$ {formatNumero(valorConsiderado(linha.comissaoMigracaoTecnologia))}</td>
+                            <td style={{ textAlign: 'center', padding: '6px' }}>R$ {formatNumero(valorConsiderado(linha.comissaoRenovacao))}</td>
+                            <td style={{ textAlign: 'center', padding: '6px' }}>R$ {formatNumero(valorConsiderado(linha.comissaoPlanoEvento))}</td>
+                            <td style={{ textAlign: 'center', padding: '6px' }}>R$ {formatNumero(valorConsiderado(linha.comissaoSVA))}</td>
+                            <td style={{ textAlign: 'center', padding: '6px' }}>R$ {formatNumero(valorConsiderado(linha.comissaoTelefonia))}</td>
                             <td style={{ textAlign: 'center', padding: '6px', backgroundColor: '#f9f9f9', fontWeight: '600' }}>R$ {formatNumero(totalLinha)}</td>
                           </tr>
                         );

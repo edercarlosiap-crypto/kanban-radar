@@ -1,36 +1,42 @@
 /* ============================================
-   DESIGN SYSTEM - iOS Modern Style
+   DESIGN SYSTEM - UNI Brand Style
    ============================================ */
+
+@font-face {
+  font-family: "Arboria";
+  src: local("Arboria");
+  font-display: swap;
+}
 
 :root {
   /* Primary Colors */
-  --primary: #007AFF;
-  --primary-dark: #0051D5;
-  --primary-light: #4DA6FF;
+  --primary: #2d5fff;
+  --primary-dark: #0b121c;
+  --primary-light: #26dcc2;
   
   /* Semantic Colors */
-  --success: #34C759;
-  --warning: #FF9500;
-  --danger: #FF3B30;
-  --info: #5AC8FA;
+  --success: #26dcc2;
+  --warning: #f59e0b;
+  --danger: #d64747;
+  --info: #2d5fff;
   
   /* Neutral Colors */
-  --light: #F5F5F7;
-  --dark: #1D1D1F;
+  --light: #f8fafc;
+  --dark: #0b121c;
   --border: rgba(0, 0, 0, 0.08);
   --divider: rgba(0, 0, 0, 0.05);
   
   /* Status Colors */
-  --verde: #34C759;
-  --amarelo: #FF9500;
-  --vermelho: #FF3B30;
-  --neutro: #8E8E93;
+  --verde: #26dcc2;
+  --amarelo: #f59e0b;
+  --vermelho: #d64747;
+  --neutro: #c2c3c4;
 
   /* Gradients */
-  --gradient-primary: linear-gradient(135deg, #007AFF 0%, #5AC8FA 100%);
-  --gradient-success: linear-gradient(135deg, #34C759 0%, #30D158 100%);
-  --gradient-warning: linear-gradient(135deg, #FF9500 0%, #FFCC00 100%);
-  --gradient-danger: linear-gradient(135deg, #FF3B30 0%, #FF6961 100%);
+  --gradient-primary: linear-gradient(135deg, #26dcc2 0%, #2d5fff 100%);
+  --gradient-success: linear-gradient(135deg, #26dcc2 0%, #1ab79f 100%);
+  --gradient-warning: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
+  --gradient-danger: linear-gradient(135deg, #d64747 0%, #f97373 100%);
   
   /* Shadows (iOS style) */
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
@@ -53,14 +59,14 @@
   --spacing-xl: 32px;
   
   /* Typography */
-  --text-primary: #1D1D1F;
-  --text-secondary: #8E8E93;
-  --text-tertiary: #C7C7CC;
+  --text-primary: #0b121c;
+  --text-secondary: #5f6976;
+  --text-tertiary: #9ca3af;
   
   /* Backgrounds */
-  --background-primary: #FFFFFF;
-  --background-secondary: #F5F5F7;
-  --background-tertiary: #E5E5EA;
+  --background-primary: #ffffff;
+  --background-secondary: #f6f8fb;
+  --background-tertiary: #e9edf3;
 }
 
 /* ============================================
@@ -74,12 +80,12 @@
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", "Roboto", sans-serif;
+  font-family: "Arboria", "Calibri", "Segoe UI", "Roboto", sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   letter-spacing: -0.01em;
   color: var(--text-primary);
-  background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
+  background: linear-gradient(135deg, #f7fafc 0%, #eef3f8 100%);
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -108,7 +114,7 @@ p {
 .app-layout {
   display: flex;
   min-height: 100vh;
-  background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
+  background: linear-gradient(135deg, #f7fafc 0%, #eef3f8 100%);
 }
 
 .sidebar {
@@ -143,21 +149,31 @@ p {
   align-items: center;
   gap: 12px;
   margin-bottom: 40px;
-  padding-bottom: 24px;
+  padding: 8px 0 24px;
+  min-height: 96px;
   border-bottom: 1px solid var(--divider);
 }
 
 .logo-image {
-  width: 48px;
-  height: 48px;
-  background: var(--gradient-primary);
-  border-radius: var(--radius-md);
+  width: 68px;
+  height: 68px;
+  background: transparent;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
-  font-weight: 700;
-  font-size: 20px;
+  overflow: hidden;
+}
+
+.logo-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.logo-section.logo-section-escuro .logo-text h2,
+.logo-section.logo-section-escuro .logo-text p {
+  color: #ffffff;
 }
 
 .logo-text h2 {
@@ -180,6 +196,67 @@ nav {
   margin-bottom: 32px;
 }
 
+.sidebar-nav .menu-section {
+  margin-bottom: 12px;
+}
+
+.menu-section-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border: 1px solid rgba(11, 18, 28, 0.08);
+  border-radius: 18px;
+  background: linear-gradient(180deg, #ffffff 0%, #f1f5fb 100%);
+  box-shadow:
+    0 8px 18px rgba(11, 18, 28, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  color: var(--text-primary);
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.menu-section-toggle:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    0 12px 22px rgba(11, 18, 28, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+}
+
+.menu-section-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.menu-section-title svg {
+  width: 16px;
+  height: 16px;
+}
+
+.menu-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: rgba(45, 95, 255, 0.12);
+  color: var(--primary);
+  transition: transform 0.2s ease;
+}
+
+.menu-chevron.open {
+  transform: rotate(90deg);
+}
+
+.menu-items {
+  margin-top: 10px;
+}
+
 nav ul {
   list-style: none;
 }
@@ -192,25 +269,43 @@ nav a {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 16px;
+  padding: 14px 16px;
   color: var(--text-secondary);
   text-decoration: none;
-  border-radius: var(--radius-md);
-  font-size: 15px;
-  font-weight: 500;
+  border-radius: 16px;
+  font-size: 16px;
+  font-weight: 600;
+  border: 1px solid rgba(11, 18, 28, 0.06);
+  background: linear-gradient(180deg, #ffffff 0%, #f4f7fc 100%);
+  box-shadow:
+    0 6px 14px rgba(11, 18, 28, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
   transition: all 0.2s ease;
   cursor: pointer;
 }
 
 nav a:hover {
-  background: var(--background-secondary);
+  background: linear-gradient(180deg, #ffffff 0%, rgba(45, 95, 255, 0.12) 100%);
   color: var(--primary);
+  transform: translateY(-1px);
+  box-shadow:
+    0 10px 20px rgba(11, 18, 28, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
 }
 
 nav a.active {
-  background: rgba(0, 122, 255, 0.1);
-  color: var(--primary);
+  background: linear-gradient(180deg, #4b88ff 0%, #2d5fff 100%);
+  color: #ffffff;
   font-weight: 600;
+  border-color: rgba(45, 95, 255, 0.35);
+  box-shadow:
+    0 10px 18px rgba(45, 95, 255, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+nav a svg {
+  width: 18px;
+  height: 18px;
 }
 
 /* ============================================

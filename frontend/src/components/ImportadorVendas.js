@@ -2,14 +2,52 @@ import React, { useState } from 'react';
 import * as XLSX from 'xlsx';
 import '../styles/ImportadorVendas.css';
 
+const CIDADE_REGIONAL_PADRAO = {
+  "alta floresta d'oeste": 'ALTA FLORESTA DOESTE',
+  'alto alegre dos parecis': 'ALTA FLORESTA DOESTE',
+  "alvorada d'oeste": 'ALVORADA DOESTE',
+  ariquemes: '',
+  buritis: '',
+  cacoal: 'ROLIM DE MOURA',
+  castanheiras: 'PRESIDENTE MEDICI',
+  cujubim: 'MACHADINHO DOESTE',
+  "espigao d'oeste": '',
+  'guajara-mirim': '',
+  jaru: 'JARU',
+  'ji-parana': 'JI-PARANA',
+  "machadinho d'oeste": 'MACHADINHO DOESTE',
+  'mirante da serra': '',
+  "nova brasilandia d'oeste": 'NOVA BRASILANDIA',
+  'nova uniao': '',
+  'novo horizonte do oeste': 'ROLIM DE MOURA',
+  'ouro preto do oeste': 'OURO PRETO',
+  parecis: 'ROLIM DE MOURA',
+  'pimenta bueno': 'ROLIM DE MOURA',
+  'porto velho': '',
+  'presidente medici': 'PRESIDENTE MEDICI',
+  'primavera de rondonia': 'ROLIM DE MOURA',
+  'rolim de moura': 'ROLIM DE MOURA',
+  "santa luzia d'oeste": 'ROLIM DE MOURA',
+  "sao felipe d'oeste": 'ROLIM DE MOURA',
+  'sao francisco do guapore': 'SAO FRANCISCO',
+  'sao miguel do guapore': 'SAO FRANCISCO',
+  seringueiras: 'SAO FRANCISCO',
+  teixeiropolis: 'ALVORADA DOESTE',
+  theobroma: 'JARU',
+  urupa: 'ALVORADA DOESTE',
+  'vale do anari': 'MACHADINHO DOESTE',
+  'vale do paraiso': 'OURO PRETO'
+};
+
 const ImportadorVendas = ({
   onImportar,
   regionais,
+  regionalCidades = [],
   colaboradores,
   carregando,
   periodosDisponiveis = []
 }) => {
-  const [arquivo, setArquivo] = useState(null);
+  const [, setArquivo] = useState(null);
   const [dados, setDados] = useState([]);
   const [selecionados, setSelecionados] = useState(new Set());
   const [etapa, setEtapa] = useState('upload'); // upload | preview | confirmacao
@@ -19,6 +57,32 @@ const ImportadorVendas = ({
   const [periodoSelecionado, setPeriodoSelecionado] = useState('');
 
   const MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+  const SVA_FINANCEIRO_PADRAO = 30;
+  const TELEFONIA_FINANCEIRO_PADRAO = 19.9;
+
+  const limparTextoCampo = (valor) => {
+    if (valor === null || valor === undefined) return '';
+    let texto = String(valor).replace(/\uFEFF/g, '').trim();
+    // Remove aspas envolventes e aspas duplicadas comuns de CSV
+    texto = texto.replace(/^"+|"+$/g, '').replace(/""/g, '"').trim();
+    return texto;
+  };
+
+  const decodificarTextoTabular = (conteudo) => {
+    const utf8 = new TextDecoder('utf-8', { fatal: false }).decode(conteudo);
+    const latin1 = new TextDecoder('iso-8859-1').decode(conteudo);
+
+    const pontuarRuido = (texto) => {
+      const substituicoes = (texto.match(/\uFFFD/g) || []).length;
+      const sinaisMojibake = (texto.match(/[ÃÂ]/g) || []).length;
+      return (substituicoes * 4) + sinaisMojibake;
+    };
+
+    return pontuarRuido(latin1) < pontuarRuido(utf8) ? latin1 : utf8;
+  };
+
+  const linhaTemConteudo = (colunas = []) =>
+    Array.isArray(colunas) && colunas.some((campo) => limparTextoCampo(campo) !== '');
 
   const normalizarPeriodo = (valor) => {
     if (!valor && valor !== 0) return '';
@@ -70,7 +134,7 @@ const ImportadorVendas = ({
       return formatarPeriodo(mapaMeses[tokenMes], ano);
     }
 
-    const numerico = normalizado.replace(/[.\-]/g, '/');
+    const numerico = normalizado.replace(/[.-]/g, '/');
     const partes = numerico.split('/').filter(Boolean);
 
     if (partes.length === 3 && partes.every((p) => /^\d+$/.test(p))) {
@@ -101,47 +165,29 @@ const ImportadorVendas = ({
     // Tratamento de nulos e vazios
     if (valor === null || valor === undefined || valor === '') return 0;
     
-    const raw = String(valor).trim();
+    const raw = limparTextoCampo(valor);
     if (!raw) return 0;
     
-    // Reconhecer "-" (traço) e "R$" vazio como 0
+    // Reconhecer "-" (traÃ§o) e "R$" vazio como 0
     if (raw === '-' || raw === 'R$' || raw === 'R$ -') return 0;
     
-    // Remover símbolo de moeda "R$"
+    // Remover sÃ­mbolo de moeda "R$"
     let normalizado = raw.replace(/R\s*\$?\s*/gi, '').trim();
     
     // Se virou vazio depois de remover R$, retornar 0
     if (!normalizado || normalizado === '-') return 0;
     
     // Tratamento de separadores de milhar e decimal
-    // Detectar se há ponto e vírgula (caso tenha ambos, ponto é milhar)
+    // Detectar se hÃ¡ ponto e vÃ­rgula (caso tenha ambos, ponto Ã© milhar)
     if (normalizado.includes('.') && normalizado.includes(',')) {
       normalizado = normalizado.replace(/\./g, '').replace(',', '.');
     } else if (normalizado.includes(',')) {
-      // Se tem apenas vírgula, pode ser decimal
+      // Se tem apenas vÃ­rgula, pode ser decimal
       normalizado = normalizado.replace(',', '.');
     }
     
     const numero = Number(normalizado);
     return Number.isNaN(numero) ? 0 : numero;
-  };
-
-  const atualizarPeriodoImportado = (indice, novoPeriodo) => {
-    const novosDados = dados.map(d => {
-      if (d.__indice === indice && novoPeriodo) {
-        return {
-          ...d,
-          __objeto: { ...d.__objeto, periodo: novoPeriodo }
-        };
-      }
-      return d;
-    });
-
-    setDados(novosDados);
-
-    // Revalidar
-    const validacao = validarRegistro(novosDados.find(d => d.__indice === indice).__objeto, indice);
-    setValidacoes(validacoes.map(v => v.indice === indice ? validacao : v));
   };
 
   const campos = [
@@ -155,47 +201,29 @@ const ImportadorVendas = ({
     'telefoniaVolume', 'telefoniaFinanceiro'
   ];
 
-  // Função para reparar caracteres corrompidos de encoding
+  // FunÃ§Ã£o para reparar caracteres corrompidos de encoding
   const repararEncodingCorreto = (texto) => {
     if (!texto) return '';
-    
-    // Mapa de caracteres corrompidos comuns (UTF-8 mal interpretado)
-    const mapeamentoCorrecao = {
-      '?': 'o',
-      '?': 'a',
-      '?': 'e',
-      '?': 'i',
-      '?': 'u',
-      '?': 'c',
-      '?': 'n',
-      '?': 'o', // mais variações
-      'virg?nia': 'virginia',
-      'padr?o': 'padrao',
-      'gon?alves': 'goncalves',
-      'cati?li': 'catiali',
-      'guimar?es': 'guimaraes',
-      'são francisco': 'sao francisco',
-      'são paulo': 'sao paulo',
-    };
 
     let reparado = texto;
     
-    // Tentar consertar com regex para ? e caracteres inválidos
-    // Padrão comum: quando há ?, substituir por equivalente sem acento
+    // Tentar consertar com regex para ? e caracteres invÃ¡lidos
+    // PadrÃ£o comum: quando hÃ¡ ?, substituir por equivalente sem acento
     reparado = reparado.replace(/Virg[?]nia/gi, 'Virginia');
     reparado = reparado.replace(/Padr[?]o/gi, 'Padrao');
     reparado = reparado.replace(/Gon[?]alves/gi, 'Goncalves');
     reparado = reparado.replace(/Cati[?]li/gi, 'Catiali');
     reparado = reparado.replace(/Guimar[?]es/gi, 'Guimaraes');
     reparado = reparado.replace(/S[?]O/gi, 'SAO');
-    reparado = reparado.replace(/[?]/g, 'a'); // Fallback genérico
+    reparado = reparado.replace(/\uFFFD/g, ' ');
+    reparado = reparado.replace(/[?]/g, ' ');
     
     return reparado;
   };
 
-  // Função para normalizar nomes removendo acentos
+  // FunÃ§Ã£o para normalizar nomes removendo acentos
   const normalizarNome = (nome) => {
-    let processado = String(nome || '').trim();
+    let processado = limparTextoCampo(nome);
     
     // Primeiro, tentar reparar encoding corrompido
     processado = repararEncodingCorreto(processado);
@@ -205,55 +233,107 @@ const ImportadorVendas = ({
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '') // Remove acentos
       .toLowerCase()
-      .replace(/\s+/g, ' ') // Normaliza espaços múltiplos para um único espaço
+      .replace(/\s+/g, ' ') // Normaliza espaÃ§os mÃºltiplos para um Ãºnico espaÃ§o
       .trim();
     
     return processado;
   };
 
+  const tokenizarTexto = (texto) => {
+    return normalizarNome(texto)
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+  };
+
+  const possuiTokenComPrefixo = (tokens, prefixos) => {
+    return tokens.some((token) => prefixos.some((prefixo) => token.startsWith(prefixo)));
+  };
+
+  const normalizarRegionalComparacao = (nome) => {
+    return normalizarNome(nome)
+      .replace(/^uni\s*-\s*/i, '')
+      .replace(/^uni\s+/i, '')
+      .replace(/\bdoeste\b/g, 'do oeste')
+      .trim();
+  };
+
+  const localizarRegionalPorNome = (nomeRegional) => {
+    if (!nomeRegional) return null;
+    const chave = normalizarRegionalComparacao(nomeRegional);
+    const exata = regionais.find((r) => normalizarRegionalComparacao(r.nome) === chave);
+    if (exata) return exata;
+
+    const aliases = [
+      { origem: 'sao francisco do guapore', destino: 'sao francisco' },
+      { origem: 'sao miguel do guapore', destino: 'sao francisco' },
+      { origem: 'seringueiras', destino: 'sao francisco' },
+      { origem: 'nova brasilandia doeste', destino: 'nova brasilandia' }
+    ];
+    const alias = aliases.find((a) => chave.includes(a.origem));
+    if (alias) {
+      return regionais.find((r) => normalizarRegionalComparacao(r.nome) === alias.destino) || null;
+    }
+
+    return null;
+  };
+
+  const localizarRegionalPorCidade = (cidade) => {
+    if (!cidade) return null;
+    const cidadeNormalizada = normalizarNome(cidade);
+    const mapeamento = regionalCidades.find((item) => normalizarNome(item.cidade) === cidadeNormalizada);
+    if (mapeamento?.regional_id) {
+      return regionais.find((r) => r.id === mapeamento.regional_id) || null;
+    }
+    if (mapeamento?.regional_nome) {
+      return localizarRegionalPorNome(mapeamento.regional_nome);
+    }
+    const regionalPadrao = CIDADE_REGIONAL_PADRAO[cidadeNormalizada] || '';
+    if (regionalPadrao) {
+      return localizarRegionalPorNome(regionalPadrao);
+    }
+    return null;
+  };
+
+  const resolverRegional = ({ regional, cidade }) => {
+    const porNome = localizarRegionalPorNome(regional);
+    if (porNome) return porNome;
+    const porCidade = localizarRegionalPorCidade(cidade);
+    if (porCidade) return porCidade;
+    return null;
+  };
+
   const validarRegistro = (registro, indice) => {
     const erros = [];
+    const vendedorNormalizado = normalizarNome(registro.vendedor);
+    const vendedorGlobal = colaboradores.find((c) => normalizarNome(c.nome) === vendedorNormalizado);
 
     if (!registro.periodo || registro.periodo.trim() === '') {
-      erros.push('Período obrigatório');
+      erros.push('Periodo obrigatorio');
     } else if (!periodoPadrao(registro.periodo.trim())) {
-      erros.push('Período inválido (use MMM/AA)');
+      erros.push('Periodo invalido (use MMM/AA)');
     }
 
     // Validar regional primeiro
-    const regionalNormalizada = registro.regional ? normalizarNome(registro.regional) : '';
-    const regionalEncontrada = regionalNormalizada 
-      ? regionais.find(r => normalizarNome(r.nome) === regionalNormalizada)
-      : null;
+    const regionalEncontrada = resolverRegional({
+      regional: registro.regional,
+      cidade: registro.cidade
+    });
 
-    if (!registro.regional || registro.regional.trim() === '') {
-      erros.push('Regional obrigatória');
-    } else if (!regionalEncontrada) {
-      erros.push(`Regional "${registro.regional}" não encontrada`);
+    if ((!registro.regional || registro.regional.trim() === '') && (!registro.cidade || registro.cidade.trim() === '') && !vendedorGlobal) {
+      erros.push('Regional obrigatoria');
+    } else if (!regionalEncontrada && !vendedorGlobal) {
+      erros.push(`Regional "${registro.regional}" nao encontrada`);
     }
 
     // Validar vendedor considerando a regional
     if (!registro.vendedor || registro.vendedor.trim() === '') {
-      erros.push('Vendedor obrigatório');
+      erros.push('Vendedor obrigatorio');
     } else {
-      const vendedorNormalizado = normalizarNome(registro.vendedor);
-      
-      // Se a regional foi encontrada, buscar vendedor que pertença a ela
-      if (regionalEncontrada) {
-        const vendedorEncontrado = colaboradores.find(
-          c => normalizarNome(c.nome) === vendedorNormalizado && c.regional_id === regionalEncontrada.id
-        );
-        if (!vendedorEncontrado) {
-          erros.push(`Vendedor "${registro.vendedor}" não encontrado na regional "${registro.regional}"`);
-        }
-      } else {
-        // Se regional não foi encontrada, apenas verificar se vendedor existe (qualquer regional)
-        const vendedorEncontrado = colaboradores.find(
-          c => normalizarNome(c.nome) === vendedorNormalizado
-        );
-        if (!vendedorEncontrado) {
-          erros.push(`Vendedor "${registro.vendedor}" não encontrado`);
-        }
+      // Vendedor novo sera criado automaticamente se houver regional valida.
+      if (!vendedorGlobal && !regionalEncontrada) {
+        erros.push(`Vendedor "${registro.vendedor}" nao encontrado e regional invalida`);
       }
     }
 
@@ -273,42 +353,227 @@ const ImportadorVendas = ({
         let linhas = [];
 
         if (arquivo.name.endsWith('.xlsx') || arquivo.name.endsWith('.xls')) {
-          // Usar 'array' para ArrayBuffer
           const workbook = XLSX.read(conteudo, { type: 'array' });
           const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-          
-          // Converter para CSV primeiro (melhor controle de encoding)
-          const csv = XLSX.utils.sheet_to_csv(worksheet);
-          linhas = csv.split('\n')
-            .filter(linha => linha.trim())
-            .map(linha => {
-              const separador = linha.includes('\t') ? '\t' : ',';
-              return linha.split(separador).map(campo => campo.trim());
-            });
+          // LÃª direto como matriz para evitar artefatos de aspas da serializaÃ§Ã£o CSV
+          linhas = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' })
+            .map((linha) => linha.map((campo) => limparTextoCampo(campo)))
+            .filter((linha) => linha.some((campo) => String(campo).trim() !== ''));
         } else {
-          // Para CSV/TXT, tentar UTF-8 e se não der, tentar Latin-1
-          let texto = '';
-          try {
-            texto = new TextDecoder('utf-8').decode(conteudo);
-          } catch {
-            texto = new TextDecoder('iso-8859-1').decode(conteudo);
-          }
-          
+          // Para CSV/TXT, escolhe automaticamente entre UTF-8 e Latin-1.
+          const texto = decodificarTextoTabular(conteudo);
+
           linhas = texto.split('\n')
             .filter(linha => linha.trim())
             .map(linha => {
               const separador = linha.includes('\t') ? '\t' : (linha.includes(';') ? ';' : ',');
-              return linha.split(separador).map(campo => campo.trim());
-            });
+              return linha.split(separador).map(campo => limparTextoCampo(campo));
+            })
+            .filter((colunas) => linhaTemConteudo(colunas));
         }
 
         if (linhas.length < 2) {
-          alert('Arquivo vazio ou inválido');
+          alert('Arquivo vazio ou invalido');
           return;
         }
 
         // Usar primeira linha como header
         const headers = linhas[0];
+        const normalizarHeader = (header) => {
+          return String(header || '')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase()
+            .replace(/[_\s-]+/g, ' ')
+            .trim();
+        };
+
+        const headersNormalizados = headers.map(normalizarHeader);
+        const ehLayoutOperadora = [
+          'filial',
+          'vendedor',
+          'cidade',
+          'motivo inclusao',
+          'valor'
+        ].every((h) => headersNormalizados.includes(h));
+
+        if (ehLayoutOperadora) {
+          const idx = {
+            filial: headersNormalizados.indexOf('filial'),
+            vendedor: headersNormalizados.indexOf('vendedor'),
+            cidade: headersNormalizados.indexOf('cidade'),
+            motivo: headersNormalizados.indexOf('motivo inclusao'),
+            descricao: headersNormalizados.indexOf('descricao'),
+            tipo: headersNormalizados.indexOf('tipo'),
+            comboServico: headersNormalizados.indexOf('combo/servico'),
+            valor: headersNormalizados.indexOf('valor'),
+            conexoes: headersNormalizados.indexOf('conexoes'),
+            dtAtivacao: headersNormalizados.indexOf('dt ativacao'),
+            dtCriacao: headersNormalizados.indexOf('dt criacao')
+          };
+
+          const definirCategoria = (motivo, tipo, descricao, comboServico, valor) => {
+            const textoMotivo = normalizarNome(motivo);
+            const textoTipo = normalizarNome(tipo);
+            const textoDescricao = normalizarNome(descricao);
+            const textoCombo = normalizarNome(comboServico);
+            const texto = [textoMotivo, textoTipo, textoDescricao, textoCombo].join(' ');
+            const tokens = tokenizarTexto(texto);
+            const tokensMotivo = tokenizarTexto(textoMotivo);
+            const tokensCombo = tokenizarTexto(textoCombo);
+
+            const ehMudanca = possuiTokenComPrefixo(tokens, ['mudan', 'mudanc', 'mudanac']);
+            const ehEndereco = possuiTokenComPrefixo(tokens, ['enderec', 'endere']);
+            const ehTitularidade = possuiTokenComPrefixo(tokens, ['titular']);
+            const ehTecnologia = possuiTokenComPrefixo(tokens, ['tecnolog']);
+            const ehMigracao = possuiTokenComPrefixo(tokens, ['migrac']);
+            const ehInstalacao = possuiTokenComPrefixo(tokens, ['instal']);
+
+            const ehMudancaEndereco = ehMudanca && ehEndereco;
+            const ehInstalacaoEvento =
+              /instal[a-z0-9]*\s+em\s+evento/.test(texto) ||
+              (possuiTokenComPrefixo(tokensMotivo, ['instal']) && tokensMotivo.some((token) => token.startsWith('evento'))) ||
+              texto.includes('plano evento');
+            const ehMudancaTitularidade = ehMudanca && ehTitularidade;
+            const ehMudancaTecnologia = (ehMudanca && ehTecnologia) || ehMigracao;
+            const ehRenovacao = possuiTokenComPrefixo(tokens, ['renovac', 'renova']);
+            const ehReativacao = possuiTokenComPrefixo(tokens, ['reativ']);
+            const ehUpgrade = possuiTokenComPrefixo(tokens, ['upgrad']);
+            const temSinalTelefoniaDireto = possuiTokenComPrefixo(tokens, ['telefon', 'telefone', 'voip', 'fone', 'stfc']);
+            const temSinalVoz = possuiTokenComPrefixo(tokens, ['voz']);
+            const temSinalFixo = possuiTokenComPrefixo(tokens, ['fixo']);
+            const apenasIpFixo = /\bip\s*fixo\b/.test(texto) && !temSinalTelefoniaDireto && !temSinalVoz;
+            const ehTelefonia = !apenasIpFixo && (temSinalTelefoniaDireto || (temSinalVoz && temSinalFixo));
+            const ehSvaExplicito = tokens.some((token) => token === 'sva' || token.startsWith('sva'));
+
+            let categoria = 'vendas';
+            if (ehMudancaEndereco) {
+              categoria = 'naoComissiona';
+            } else if (ehInstalacaoEvento) {
+              categoria = 'planoEvento';
+            } else if (ehMudancaTitularidade) {
+              categoria = 'mudancaTitularidade';
+            } else if (ehMudancaTecnologia) {
+              categoria = 'migracaoTecnologia';
+            } else if (ehRenovacao) {
+              categoria = 'renovacao';
+            } else if (ehSvaExplicito) {
+              categoria = 'sva';
+            } else if (ehTelefonia) {
+              categoria = 'telefonia';
+            } else if (ehReativacao || ehUpgrade || ehInstalacao) {
+              categoria = 'vendas';
+            }
+
+            // Regra adicional de SVA:
+            // Toda venda, reativacao, renovacao e upgrade de plano Varejo/Urbano acima de R$ 99,90.
+            const planoElegivelSva = possuiTokenComPrefixo(tokensCombo, ['varej', 'urban']);
+            const eventoElegivelSva = categoria === 'vendas' || categoria === 'renovacao' || ehReativacao || ehUpgrade;
+            const contaSva =
+              categoria !== 'naoComissiona' &&
+              (categoria === 'sva' || (eventoElegivelSva && planoElegivelSva && valor > 99.9));
+
+            return { categoria, contaSva };
+          };
+
+          const acumulado = new Map();
+
+          linhas.slice(1).forEach((linha) => {
+            if (!linhaTemConteudo(linha)) return;
+
+            const vendedor = limparTextoCampo(linha[idx.vendedor] || '');
+            const cidade = limparTextoCampo(linha[idx.cidade] || '');
+            const regionalBruta = limparTextoCampo(linha[idx.filial] || '');
+            const regionalResolvida = resolverRegional({ regional: regionalBruta, cidade });
+            const regional = regionalResolvida?.nome || regionalBruta;
+            const periodoFonte = linha[idx.dtAtivacao] || linha[idx.dtCriacao] || '';
+            const periodo = periodoSelecionado || normalizarPeriodo(periodoFonte);
+            const conexoes = Math.max(1, normalizarNumero(linha[idx.conexoes] || 1));
+            const valor = normalizarNumero(linha[idx.valor] || 0);
+
+            if (!vendedor || !periodo) return;
+
+            const classificacao = definirCategoria(
+              linha[idx.motivo] || '',
+              linha[idx.tipo] || '',
+              linha[idx.descricao] || '',
+              linha[idx.comboServico] || '',
+              valor
+            );
+            const categoria = classificacao.categoria;
+            const contaSva = classificacao.contaSva;
+
+            if (categoria === 'naoComissiona') return;
+
+            const chave = `${periodo}|${normalizarNome(vendedor)}|${normalizarRegionalComparacao(regional)}`;
+            if (!acumulado.has(chave)) {
+              acumulado.set(chave, {
+                periodo,
+                vendedor,
+                regional,
+                cidade,
+                vendasVolume: 0,
+                vendasFinanceiro: 0,
+                mudancaTitularidadeVolume: 0,
+                mudancaTitularidadeFinanceiro: 0,
+                migracaoTecnologiaVolume: 0,
+                migracaoTecnologiaFinanceiro: 0,
+                renovacaoVolume: 0,
+                renovacaoFinanceiro: 0,
+                planoEventoVolume: 0,
+                planoEventoFinanceiro: 0,
+                svaVolume: 0,
+                svaFinanceiro: 0,
+                telefoniaVolume: 0,
+                telefoniaFinanceiro: 0
+              });
+            }
+
+            const item = acumulado.get(chave);
+            if (categoria === 'mudancaTitularidade') {
+              item.mudancaTitularidadeVolume += conexoes;
+              item.mudancaTitularidadeFinanceiro += valor;
+            } else if (categoria === 'migracaoTecnologia') {
+              item.migracaoTecnologiaVolume += conexoes;
+              item.migracaoTecnologiaFinanceiro += valor;
+            } else if (categoria === 'renovacao') {
+              item.renovacaoVolume += conexoes;
+              item.renovacaoFinanceiro += valor;
+            } else if (categoria === 'planoEvento') {
+              item.planoEventoVolume += conexoes;
+              item.planoEventoFinanceiro += valor;
+            } else if (categoria === 'sva') {
+              item.svaVolume += conexoes;
+              item.svaFinanceiro += conexoes * SVA_FINANCEIRO_PADRAO;
+            } else if (categoria === 'telefonia') {
+              item.telefoniaVolume += conexoes;
+              item.telefoniaFinanceiro += conexoes * TELEFONIA_FINANCEIRO_PADRAO;
+            } else {
+              item.vendasVolume += conexoes;
+              item.vendasFinanceiro += valor;
+            }
+
+            if (contaSva && categoria !== 'sva') {
+              item.svaVolume += conexoes;
+              item.svaFinanceiro += conexoes * SVA_FINANCEIRO_PADRAO;
+            }
+          });
+
+          const dadosProcessadosOperadora = Array.from(acumulado.values()).map((obj, index) => ({
+            __indice: index,
+            __objeto: obj
+          }));
+
+          setDados(dadosProcessadosOperadora);
+          setSelecionados(new Set());
+          const validacoesResultado = dadosProcessadosOperadora.map((d, idxLinha) =>
+            validarRegistro(d.__objeto, idxLinha)
+          );
+          setValidacoes(validacoesResultado);
+          setEtapa('preview');
+          return;
+        }
+
         const mapeadorHeader = {
           'periodo': 'periodo',
           'perido': 'periodo',
@@ -376,15 +641,6 @@ const ImportadorVendas = ({
           'telefonia_financeiro': 'telefoniaFinanceiro'
         };
 
-        const normalizarHeader = (header) => {
-          return String(header || '')
-            .normalize('NFD')
-            .replace(/[\u0300-\u036f]/g, '')
-            .toLowerCase()
-            .replace(/[_\s-]+/g, ' ')
-            .trim();
-        };
-
         // Mapeamento inteligente: detecta "Financeiro" isolado e atribui ao campo anterior
         const indicesColuna = {};
         let ultimoCampoVolume = null;
@@ -396,39 +652,24 @@ const ImportadorVendas = ({
           if (chaveMapeada) {
             indicesColuna[chaveMapeada] = idx;
             
-            // Se é um campo de volume, guardar para uso posterior
+            // Se Ã© um campo de volume, guardar para uso posterior
             if (chaveMapeada.endsWith('Volume')) {
               ultimoCampoVolume = chaveMapeada.replace('Volume', 'Financeiro');
             }
           } else if (chaveNormalizada === 'financeiro' && ultimoCampoVolume) {
             // Se encontrar "Financeiro" isolado, mapear para o financeiro do campo anterior
             indicesColuna[ultimoCampoVolume] = idx;
-            console.log(`Detectado "Financeiro" isolado na coluna ${idx}, mapeado para: ${ultimoCampoVolume}`);
-          } else {
-            console.warn(`Coluna não mapeada: "${header}" → "${chaveNormalizada}"`);
           }
         });
 
-        // DEBUG: Mostrar estrutura dos headers
-        console.log('=== HEADERS ENCONTRADOS ===');
-        console.log('Headers brutos:', headers);
-        console.log('Índices mapeados:', indicesColuna);
-        console.log('Primeira linha de dados:', linhas[1]);
-        console.log('Dados extraídos:', {
-          periodo: linhas[1]?.[indicesColuna.periodo],
-          vendedor: linhas[1]?.[indicesColuna.vendedor],
-          regional: linhas[1]?.[indicesColuna.regional],
-          vendasVolume: linhas[1]?.[indicesColuna.vendasVolume],
-          vendasFinanceiro: linhas[1]?.[indicesColuna.vendasFinanceiro]
-        });
-        console.log('========================');
-
-        const dadosProcessados = linhas.slice(1).map((linha, idx) => ({
+        const dadosProcessados = linhas.slice(1)
+          .filter((linha) => linhaTemConteudo(linha))
+          .map((linha, idx) => ({
           __indice: idx,
           __objeto: {
-            periodo: periodoSelecionado || normalizarPeriodo(linha[indicesColuna.periodo] || ''),
-            vendedor: linha[indicesColuna.vendedor] || '',
-            regional: linha[indicesColuna.regional] || '',
+            periodo: periodoSelecionado || normalizarPeriodo(limparTextoCampo(linha[indicesColuna.periodo] || '')),
+            vendedor: limparTextoCampo(linha[indicesColuna.vendedor] || ''),
+            regional: limparTextoCampo(linha[indicesColuna.regional] || ''),
             vendasVolume: linha[indicesColuna.vendasVolume] || '0',
             vendasFinanceiro: linha[indicesColuna.vendasFinanceiro] || '0',
             mudancaTitularidadeVolume: linha[indicesColuna.mudancaTitularidadeVolume] || '0',
@@ -523,11 +764,21 @@ const ImportadorVendas = ({
     });
 
     if (registrosValidos.length === 0) {
-      alert('Nenhum registro válido para importar');
+      alert('Nenhum registro valido para importar');
       return;
     }
 
-    await onImportar(registrosValidos.map(r => r.__objeto));
+    const periodosImportados = Array.from(new Set(
+      registrosValidos.map((r) => String(r.__objeto?.periodo || '').trim()).filter(Boolean)
+    ));
+
+    await onImportar(
+      registrosValidos.map(r => r.__objeto),
+      {
+        sincronizarPeriodo: true,
+        periodosImportados
+      }
+    );
     resetar();
   };
 
@@ -543,24 +794,24 @@ const ImportadorVendas = ({
   if (etapa === 'upload') {
     return (
       <div className="importador-vendas">
-        <h3>📁 Importar Vendas (Excel ou CSV)</h3>
+        <h3>Importar Vendas (Excel ou CSV)</h3>
         
         {periodosDisponiveis.length > 0 && (
           <div style={{ marginBottom: '16px', padding: '12px', backgroundColor: '#fff3cd', borderLeftColor: '#ffc107', borderLeftWidth: '4px', borderRadius: '4px' }}>
-            <label className="form-label"><strong>⚠️ Período (RECOMENDADO)</strong></label>
+            <label className="form-label"><strong>Periodo (RECOMENDADO)</strong></label>
             <select
               className="form-select"
               value={periodoSelecionado}
               onChange={(e) => setPeriodoSelecionado(e.target.value)}
               style={{ marginBottom: '8px' }}
             >
-              <option value="">-- Selecione o período --</option>
+              <option value="">-- Selecione o periodo --</option>
               {periodosDisponiveis.map(p => (
                 <option key={p} value={p}>{p}</option>
               ))}
             </select>
             <p style={{ fontSize: '12px', color: '#333', margin: '8px 0 0 0', lineHeight: '1.5' }}>
-              <strong>Recomendação:</strong> Selecione o período antes de importar. Se deixar em branco, o sistema tentará extrair do arquivo (formato: DD/MM/YYYY, MM/YYYY, ou nome do mês).
+              <strong>Recomendacao:</strong> Selecione o periodo antes de importar. Se deixar em branco, o sistema tentara extrair do arquivo (formato: DD/MM/YYYY, MM/YYYY, ou nome do mes).
             </p>
           </div>
         )}
@@ -581,16 +832,15 @@ const ImportadorVendas = ({
   }
 
   if (etapa === 'preview') {
-    const temErros = validacoes.some(v => v.temErros);
     const registrosComErro = validacoes.filter(v => v.temErros);
 
     return (
       <div className="importador-vendas">
-        <h3>👁️ Preview dos Dados Importados</h3>
+        <h3>Preview dos Dados Importados</h3>
 
         {periodosDisponiveis.length > 0 && (
           <div style={{ marginBottom: '16px', padding: '12px', backgroundColor: '#fff3cd', borderLeftColor: '#ffc107', borderLeftWidth: '4px', borderRadius: '4px' }}>
-            <label className="form-label"><strong>📅 Período (você pode ajustar aqui)</strong></label>
+            <label className="form-label"><strong>Periodo (voce pode ajustar aqui)</strong></label>
             <select
               className="form-select"
               value={periodoSelecionado}
@@ -608,7 +858,7 @@ const ImportadorVendas = ({
               }}
               style={{ marginBottom: '8px' }}
             >
-              <option value="">-- Selecione o período --</option>
+              <option value="">-- Selecione o periodo --</option>
               {periodosDisponiveis.map(p => (
                 <option key={p} value={p}>{p}</option>
               ))}
@@ -618,10 +868,10 @@ const ImportadorVendas = ({
 
         {!periodoSelecionado && (
           <div style={{ padding: '12px', backgroundColor: '#f8d7da', border: '1px solid #f5c6cb', borderRadius: '4px', marginBottom: '16px', color: '#721c24' }}>
-            <strong>⚠️ Atenção:</strong> Período não foi selecionado. O sistema tentará extrair de cada linha automaticamente. Recomendamos selecionar um período acima para garantir consistência.
+            <strong>Atencao:</strong> Periodo nao foi selecionado. O sistema tentara extrair de cada linha automaticamente. Recomendamos selecionar um periodo acima para garantir consistencia.
             <br/>
             <button type="button" className="btn btn-link btn-sm" onClick={() => setEtapa('upload')} style={{ padding: '0', marginTop: '8px' }}>
-              ← Voltar e selecionar período
+              Voltar e selecionar periodo
             </button>
           </div>
         )}
@@ -643,7 +893,7 @@ const ImportadorVendas = ({
               onClick={excluirSelecionados}
               disabled={carregando}
             >
-              🗑️ Excluir Selecionados ({selecionados.size})
+              Excluir Selecionados ({selecionados.size})
             </button>
           )}
         </div>
@@ -660,12 +910,12 @@ const ImportadorVendas = ({
                   />
                 </th>
                 <th>Linha</th>
-                <th>Período</th>
+                <th>Periodo</th>
                 <th>Vendedor</th>
                 <th>Regional</th>
                 <th>Vendas Vol.</th>
                 <th>Status</th>
-                <th>Ação</th>
+                <th>Acao</th>
               </tr>
             </thead>
             <tbody>
@@ -688,10 +938,10 @@ const ImportadorVendas = ({
                     <td>
                       {validacao?.temErros ? (
                         <span className="status-erro" title={validacao.erros.join('\n')}>
-                          ❌ {validacao.erros.length} erro(s)
+                          ERRO: {validacao.erros.length}
                         </span>
                       ) : (
-                        <span className="status-ok">✓ OK</span>
+                        <span className="status-ok">OK</span>
                       )}
                     </td>
                     <td>
@@ -700,7 +950,7 @@ const ImportadorVendas = ({
                         className="btn btn-sm btn-secondary"
                         onClick={() => setModalEdicao(registro.__indice)}
                       >
-                        ✏️ Editar
+                        Editar
                       </button>
                     </td>
                   </tr>
@@ -712,7 +962,7 @@ const ImportadorVendas = ({
 
         {validacoes.some(v => v.temErros) && (
           <div className="alert alert-warning" style={{ marginTop: '16px' }}>
-            <strong>⚠️ {registrosComErro.length} linha(s) com erro(s):</strong>
+            <strong>{registrosComErro.length} linha(s) com erro(s):</strong>
             <ul style={{ marginTop: '8px' }}>
               {registrosComErro.map((validacao) => (
                 <li key={validacao.linha}>
@@ -730,7 +980,7 @@ const ImportadorVendas = ({
             onClick={resetar}
             disabled={carregando}
           >
-            ← Voltar
+            Voltar
           </button>
           <button
             type="button"
@@ -738,7 +988,7 @@ const ImportadorVendas = ({
             onClick={confirmarImportacao}
             disabled={carregando || !dados.some(d => !validacoes.find(v => v.indice === d.__indice)?.temErros)}
           >
-            ✓ Confirmar Importação
+            Confirmar Importacao
           </button>
         </div>
 
@@ -769,7 +1019,7 @@ const ModalEdicao = ({ indice, registro, validacao, campos, onSalvar, onFechar }
 
         {validacao?.temErros && (
           <div className="alert alert-warning" style={{ marginBottom: '16px' }}>
-            ⚠️ {validacao.erros.join('; ')}
+            {validacao.erros.join('; ')}
           </div>
         )}
 
@@ -798,3 +1048,4 @@ const ModalEdicao = ({ indice, registro, validacao, campos, onSalvar, onFechar }
 };
 
 export default ImportadorVendas;
+

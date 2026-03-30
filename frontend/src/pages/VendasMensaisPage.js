@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
+﻿import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api, { regionaisAPI, vendasMensaisAPI, churnRegionaisAPI } from '../services/api';
+import * as XLSX from 'xlsx';
+import api, { regionaisAPI, regionalCidadesAPI, vendasMensaisAPI, churnRegionaisAPI } from '../services/api';
 import LogoImage from '../components/LogoImage';
 import SidebarNav from '../components/SidebarNav';
 import ImportadorVendas from '../components/ImportadorVendas';
@@ -102,21 +103,21 @@ const normalizarNumero = (valor) => {
   const raw = String(valor).trim();
   if (!raw) return 0;
   
-  // Reconhecer "-" (traço) e "R$" vazio como 0
+  // Reconhecer "-" (traÃ§o) e "R$" vazio como 0
   if (raw === '-' || raw === 'R$' || raw === 'R$ -') return 0;
   
-  // Remover símbolo de moeda "R$"
+  // Remover sÃ­mbolo de moeda "R$"
   let normalizado = raw.replace(/R\s*\$?\s*/gi, '').trim();
   
   // Se virou vazio depois de remover R$, retornar 0
   if (!normalizado || normalizado === '-') return 0;
   
   // Tratamento de separadores de milhar e decimal
-  // Detectar se há ponto e vírgula (caso tenha ambos, ponto é milhar)
+  // Detectar se hÃ¡ ponto e vÃ­rgula (caso tenha ambos, ponto Ã© milhar)
   if (normalizado.includes('.') && normalizado.includes(',')) {
     normalizado = normalizado.replace(/\./g, '').replace(',', '.');
   } else if (normalizado.includes(',')) {
-    // Se tem apenas vírgula, pode ser decimal
+    // Se tem apenas vÃ­rgula, pode ser decimal
     normalizado = normalizado.replace(',', '.');
   }
   
@@ -130,6 +131,7 @@ const normalizarChave = (header) => {
     .trim()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^\w\s-]/g, ' ')
     .replace(/[_\s-]+/g, ' ')
     .trim();
 };
@@ -151,13 +153,18 @@ const identificarSeparador = (linha) => {
   return melhorSeparador;
 };
 
+const extrairMensagemErroAPI = (error, fallback) =>
+  error?.response?.data?.erro || error?.message || fallback;
+
 export default function VendasMensaisPage() {
   const navigate = useNavigate();
   const usuario = JSON.parse(localStorage.getItem('usuario') || '{}');
   const perfil = usuario.role || 'leitura';
 
   const [regionais, setRegionais] = useState([]);
+  const [regionalCidades, setRegionalCidades] = useState([]);
   const [colaboradores, setColaboradores] = useState([]);
+  const [funcoes, setFuncoes] = useState([]);
   const [vendasMensais, setVendasMensais] = useState([]);
   const [churnRegistros, setChurnRegistros] = useState([]);
   const [carregando, setCarregando] = useState(false);
@@ -167,8 +174,14 @@ export default function VendasMensaisPage() {
   const [modoLoteChurn, setModoLoteChurn] = useState(false);
   const [textoLoteVendas, setTextoLoteVendas] = useState('');
   const [textoLoteChurn, setTextoLoteChurn] = useState('');
+  const [periodoLoteChurn, setPeriodoLoteChurn] = useState(obterPeriodoAtual());
   const [falhasLoteVendas, setFalhasLoteVendas] = useState([]);
   const [falhasLoteChurn, setFalhasLoteChurn] = useState([]);
+  const [arquivoPdfEvento, setArquivoPdfEvento] = useState(null);
+  const [tipoEventoPdf, setTipoEventoPdf] = useState('renovacao');
+  const [periodoPdf, setPeriodoPdf] = useState(obterPeriodoAtual());
+  const [sobrescreverTipoPdf, setSobrescreverTipoPdf] = useState(true);
+  const [resultadoImportacaoPdf, setResultadoImportacaoPdf] = useState(null);
   const [editandoVendaId, setEditandoVendaId] = useState(null);
   const [filtroPeriodo, setFiltroPeriodo] = useState(obterPeriodoAtual());
   const [filtroRegional, setFiltroRegional] = useState('');
@@ -222,12 +235,14 @@ export default function VendasMensaisPage() {
       setCarregando(true);
       const resultados = await Promise.allSettled([
         regionaisAPI.listar(),
+        regionalCidadesAPI.listar(),
+        api.get('/funcoes'),
         api.get('/colaboradores'),
         vendasMensaisAPI.listar(),
         churnRegionaisAPI.listar()
       ]);
 
-      const [regResp, colabResp, vendasResp, churnResp] = resultados;
+      const [regResp, cidadesResp, funcoesResp, colabResp, vendasResp, churnResp] = resultados;
       const falhas = [];
 
       if (regResp.status === 'fulfilled') {
@@ -236,10 +251,22 @@ export default function VendasMensaisPage() {
         falhas.push('regionais');
       }
 
+      if (funcoesResp.status === 'fulfilled') {
+        setFuncoes(funcoesResp.value.data.funcoes || []);
+      } else {
+        falhas.push('funcoes');
+      }
+
       if (colabResp.status === 'fulfilled') {
         setColaboradores(colabResp.value.data.colaboradores || []);
       } else {
         falhas.push('colaboradores');
+      }
+
+      if (cidadesResp.status === 'fulfilled') {
+        setRegionalCidades(cidadesResp.value.data.cidades || []);
+      } else {
+        falhas.push('cidades');
       }
 
       if (vendasResp.status === 'fulfilled') {
@@ -284,24 +311,102 @@ export default function VendasMensaisPage() {
     return colaboradores.filter((c) => c.regional_id === formData.regionalId);
   }, [colaboradores, formData.regionalId]);
 
-  // Função para normalizar nomes (remover acentos, espaços extras, lowercase)
+  // FunÃ§Ã£o para normalizar nomes (remover acentos, espaÃ§os extras, lowercase)
   const normalizarNome = (nome) => {
     return String(nome || '')
       .trim()
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '') // Remove acentos
       .toLowerCase()
-      .replace(/\s+/g, ' ') // Normaliza espaços múltiplos
+      .replace(/\s+/g, ' ') // Normaliza espaÃ§os mÃºltiplos
       .trim();
   };
 
-  const localizarRegional = (valor) => {
-    if (!valor) return null;
+  const normalizarRegionalComparacao = (nome) => {
+    return normalizarNome(nome)
+      .replace(/^uni\s*-\s*/i, '')
+      .replace(/^uni\s+/i, '')
+      .replace(/\bdoeste\b/g, 'do oeste')
+      .trim();
+  };
+
+  const funcaoPadraoVendedorId = useMemo(() => {
+    const ordemPreferencia = ['vendedor', 'consultor', 'vendas'];
+    for (const termo of ordemPreferencia) {
+      const encontrada = funcoes.find((f) => normalizarNome(f.nome).includes(termo));
+      if (encontrada?.id) return encontrada.id;
+    }
+    return funcoes[0]?.id || null;
+  }, [funcoes]);
+
+  const localizarRegional = (valor, cidade = null) => {
+    if (!valor && !cidade) return null;
     const direto = regionais.find((r) => r.id === valor);
     if (direto) return direto.id;
-    const valorNormalizado = normalizarNome(valor);
-    const nome = regionais.find((r) => normalizarNome(r.nome) === valorNormalizado);
-    return nome ? nome.id : null;
+    const valorNormalizado = valor ? normalizarRegionalComparacao(valor) : '';
+    if (valorNormalizado) {
+      const nome = regionais.find((r) => normalizarRegionalComparacao(r.nome) === valorNormalizado);
+      if (nome) return nome.id;
+    }
+
+    const aliases = [
+      { origem: 'sao francisco do guapore', destino: 'sao francisco' },
+      { origem: 'sao miguel do guapore', destino: 'sao francisco' },
+      { origem: 'seringueiras', destino: 'sao francisco' },
+      { origem: 'nova brasilandia doeste', destino: 'nova brasilandia' }
+    ];
+    if (valorNormalizado) {
+      const alias = aliases.find((a) => valorNormalizado.includes(a.origem));
+      if (alias) {
+        const porAlias = regionais.find((r) => normalizarRegionalComparacao(r.nome) === alias.destino);
+        if (porAlias) return porAlias.id;
+      }
+    }
+
+    if (cidade) {
+      const cidadeNormalizada = normalizarNome(cidade);
+      const mapeamento = regionalCidades.find((item) => normalizarNome(item.cidade) === cidadeNormalizada);
+      if (mapeamento?.regional_id) return mapeamento.regional_id;
+    }
+
+    return null;
+  };
+
+  const resolverVendedorParaImportacao = async (nomeVendedor, regionalId, colaboradoresCache) => {
+    const nomeNormalizado = normalizarNome(nomeVendedor);
+    if (!nomeNormalizado || !regionalId) return null;
+
+    let vendedor = colaboradoresCache.find(
+      (c) => normalizarNome(c.nome) === nomeNormalizado && c.regional_id === regionalId
+    );
+    if (vendedor) return vendedor.id;
+
+    vendedor = colaboradoresCache.find((c) => normalizarNome(c.nome) === nomeNormalizado);
+    if (vendedor) {
+      // Mantem o cadastro historico do colaborador; a regional do movimento fica em vendas_mensais.
+      return vendedor.id;
+    }
+
+    if (!funcaoPadraoVendedorId) return null;
+
+    const resposta = await api.post('/colaboradores', {
+      nome: String(nomeVendedor).trim(),
+      regional_id: regionalId,
+      funcao_id: funcaoPadraoVendedorId
+    });
+
+    const novoId = resposta?.data?.colaborador?.id;
+    if (!novoId) return null;
+
+    const novoColaborador = {
+      id: novoId,
+      nome: String(nomeVendedor).trim(),
+      regional_id: regionalId,
+      funcao_id: funcaoPadraoVendedorId,
+      status: 'ativo'
+    };
+    colaboradoresCache.push(novoColaborador);
+    return novoId;
   };
 
   const localizarVendedor = (valor, regionalId = null) => {
@@ -310,7 +415,7 @@ export default function VendasMensaisPage() {
     if (direto) return direto.id;
     const valorNormalizado = normalizarNome(valor);
     
-    // Se regionalId for fornecida, buscar vendedor que pertença àquela regional
+    // Se regionalId for fornecida, buscar vendedor que pertenÃ§a Ã quela regional
     if (regionalId) {
       const nome = colaboradores.find((c) => 
         normalizarNome(c.nome) === valorNormalizado && c.regional_id === regionalId
@@ -318,7 +423,7 @@ export default function VendasMensaisPage() {
       return nome ? nome.id : null;
     }
     
-    // Caso contrário, buscar apenas por nome (comportamento padrão)
+    // Caso contrÃ¡rio, buscar apenas por nome (comportamento padrÃ£o)
     const nome = colaboradores.find((c) => normalizarNome(c.nome) === valorNormalizado);
     return nome ? nome.id : null;
   };
@@ -353,6 +458,28 @@ export default function VendasMensaisPage() {
     setMensagem('');
     setFalhasLoteVendas([]);
     setFalhasLoteChurn([]);
+    setResultadoImportacaoPdf(null);
+  };
+
+  const registroTemValores = (registro) => {
+    const valores = [
+      registro.vendasVolume,
+      registro.vendasFinanceiro,
+      registro.mudancaTitularidadeVolume,
+      registro.mudancaTitularidadeFinanceiro,
+      registro.migracaoTecnologiaVolume,
+      registro.migracaoTecnologiaFinanceiro,
+      registro.renovacaoVolume,
+      registro.renovacaoFinanceiro,
+      registro.planoEventoVolume,
+      registro.planoEventoFinanceiro,
+      registro.svaVolume,
+      registro.svaFinanceiro,
+      registro.telefoniaVolume,
+      registro.telefoniaFinanceiro
+    ];
+
+    return valores.some((valor) => normalizarNumero(valor) !== 0);
   };
 
   const handleSubmit = async (e) => {
@@ -479,7 +606,7 @@ export default function VendasMensaisPage() {
       await carregarDados();
     } catch (error) {
       console.error(error);
-      setErro('Erro ao deletar registro de vendas');
+      setErro(extrairMensagemErroAPI(error, 'Erro ao deletar registro de vendas'));
     } finally {
       setCarregando(false);
     }
@@ -522,13 +649,13 @@ export default function VendasMensaisPage() {
       await carregarDados();
     } catch (error) {
       console.error(error);
-      setErro('Erro ao deletar churn regional');
+      setErro(extrairMensagemErroAPI(error, 'Erro ao deletar churn regional'));
     } finally {
       setCarregando(false);
     }
   };
 
-  // Funções para seleção e exclusão em massa de Vendas
+  // FunÃ§Ãµes para seleÃ§Ã£o e exclusÃ£o em massa de Vendas
   const selecionarTodasVendas = (e) => {
     if (e.target.checked) {
       setSelecionadosVendas(new Set(vendasFiltradas.map(v => v.id)));
@@ -563,18 +690,18 @@ export default function VendasMensaisPage() {
         await vendasMensaisAPI.deletar(id);
       }
       
-      setMensagem(`✓ ${selecionadosVendas.size} registro(s) deletado(s) com sucesso`);
+      setMensagem(`${selecionadosVendas.size} registro(s) deletado(s) com sucesso`);
       setSelecionadosVendas(new Set());
       await carregarDados();
     } catch (error) {
       console.error(error);
-      setErro('Erro ao deletar registros de vendas');
+      setErro(extrairMensagemErroAPI(error, 'Erro ao deletar registros de vendas'));
     } finally {
       setCarregando(false);
     }
   };
 
-  // Funções para seleção e exclusão em massa de Churn
+  // FunÃ§Ãµes para seleÃ§Ã£o e exclusÃ£o em massa de Churn
   const selecionarTodosChurn = (e) => {
     if (e.target.checked) {
       setSelecionadosChurn(new Set(churnFiltrado.map(c => c.id)));
@@ -609,12 +736,12 @@ export default function VendasMensaisPage() {
         await churnRegionaisAPI.deletar(id);
       }
       
-      setMensagem(`✓ ${selecionadosChurn.size} registro(s) de churn deletado(s) com sucesso`);
+      setMensagem(`${selecionadosChurn.size} registro(s) de churn deletado(s) com sucesso`);
       setSelecionadosChurn(new Set());
       await carregarDados();
     } catch (error) {
       console.error(error);
-      setErro('Erro ao deletar registros de churn');
+      setErro(extrairMensagemErroAPI(error, 'Erro ao deletar registros de churn'));
     } finally {
       setCarregando(false);
     }
@@ -640,6 +767,14 @@ export default function VendasMensaisPage() {
       regionais: 'regional',
       regiao: 'regional',
       regioes: 'regional',
+      cidade: 'cidade',
+      cidades: 'cidade',
+      'base ref': 'baseRef',
+      'base referencia': 'baseRef',
+      'base de referencia': 'baseRef',
+      cancelados: 'cancelados',
+      'cancelados churn': 'canceladosChurn',
+      'cancelados_churn': 'canceladosChurn',
       vendas: 'vendasVolume',
       'vendas volume': 'vendasVolume',
       vendas_volume: 'vendasVolume',
@@ -687,32 +822,42 @@ export default function VendasMensaisPage() {
     return mapa[chave] || '';
   };
 
-  const handleImportarVendas = async (registrosValidos) => {
+  const handleImportarVendas = async (registrosValidos, opcoes = {}) => {
     try {
       setCarregando(true);
       limparMensagens();
       
       let sucesso = 0;
       let falhas = 0;
+      const colaboradoresCache = [...colaboradores];
+      const payloadLote = [];
 
       for (const registro of registrosValidos) {
         try {
           const periodo = parsePeriodo(registro.periodo);
-          const regionalId = localizarRegional(registro.regional);
-          const vendedorId = localizarVendedor(registro.vendedor, regionalId);
+          let regionalId = localizarRegional(registro.regional, registro.cidade);
+          const vendedorGlobal = colaboradoresCache.find(
+            (c) => normalizarNome(c.nome) === normalizarNome(registro.vendedor)
+          );
+          if (!regionalId && vendedorGlobal?.regional_id) {
+            regionalId = vendedorGlobal.regional_id;
+          }
+          const vendedorId = await resolverVendedorParaImportacao(
+            registro.vendedor,
+            regionalId,
+            colaboradoresCache
+          );
 
           if (!periodo || !vendedorId || !regionalId) {
             falhas++;
             continue;
           }
+        if (!registroTemValores(registro)) {
+          falhas++;
+          continue;
+        }
 
-          const vendedor = colaboradores.find((c) => c.id === vendedorId);
-          if (vendedor && vendedor.regional_id !== regionalId) {
-            falhas++;
-            continue;
-          }
-
-          await vendasMensaisAPI.criar({
+        payloadLote.push({
             periodo,
             vendedorId,
             regionalId,
@@ -738,11 +883,62 @@ export default function VendasMensaisPage() {
         }
       }
 
-      setMensagem(`✅ Importação concluída: ${sucesso} registros importados com sucesso${falhas > 0 ? `, ${falhas} falharam` : ''}`);
+      if (payloadLote.length > 0) {
+        const sincronizarPeriodo = Boolean(opcoes?.sincronizarPeriodo);
+        await vendasMensaisAPI.importarLote(payloadLote, { sincronizarPeriodo });
+      }
+
+      setColaboradores(colaboradoresCache);
+      const sufixoModo = opcoes?.sincronizarPeriodo ? ' (modo espelho por periodo)' : '';
+      setMensagem(`Importacao concluida${sufixoModo}: ${sucesso} registros importados com sucesso${falhas > 0 ? `, ${falhas} falharam` : ''}`);
       await carregarDados();
     } catch (error) {
       console.error(error);
       setErro('Erro ao importar vendas mensais');
+    } finally {
+      setCarregando(false);
+    }
+  };
+
+  const handleImportarPdfEvento = async () => {
+    limparMensagens();
+    setResultadoImportacaoPdf(null);
+
+    if (!arquivoPdfEvento) {
+      setErro('Selecione um arquivo PDF para importar.');
+      return;
+    }
+
+    if (!tipoEventoPdf) {
+      setErro('Selecione o tipo de evento do PDF.');
+      return;
+    }
+
+    try {
+      setCarregando(true);
+      const form = new FormData();
+      form.append('arquivo', arquivoPdfEvento);
+      form.append('tipoEvento', tipoEventoPdf);
+      if (periodoPdf) {
+        form.append('periodo', periodoPdf);
+      }
+      form.append('sobrescreverTipoNoPeriodo', sobrescreverTipoPdf ? 'true' : 'false');
+
+      const resposta = await vendasMensaisAPI.importarPdfEvento(form);
+      const dadosResposta = resposta?.data || {};
+      setResultadoImportacaoPdf(dadosResposta);
+
+      const pendencias = Number(dadosResposta.totalPendencias || 0);
+      setMensagem(
+        `${dadosResposta.mensagem || 'Importacao concluida'}${pendencias > 0 ? ` (${pendencias} pendencia(s))` : ''}`
+      );
+
+      setArquivoPdfEvento(null);
+      await carregarDados();
+    } catch (error) {
+      console.error(error);
+      const erroApi = error?.response?.data?.erro;
+      setErro(erroApi || 'Erro ao importar PDF de evento');
     } finally {
       setCarregando(false);
     }
@@ -833,7 +1029,11 @@ export default function VendasMensaisPage() {
     const primeiraLinha = linhas[0].split(separador).map((campo) => campo.trim());
     const headerCandidato = primeiraLinha.map(mapearHeader);
     const camposMapeados = headerCandidato.filter((item) => item);
-    const temHeader = camposMapeados.length >= 2 && (headerCandidato.includes('periodo') || headerCandidato.includes('regional'));
+    const temHeader = camposMapeados.length >= 2 && (
+      headerCandidato.includes('periodo') ||
+      headerCandidato.includes('regional') ||
+      headerCandidato.includes('cidade')
+    );
 
     if (temHeader) {
       headers = headerCandidato;
@@ -842,7 +1042,7 @@ export default function VendasMensaisPage() {
 
     return linhas.slice(inicioDados).map((linha) => {
       const colunas = linha.split(separador).map((campo) => campo.trim());
-      const dados = { periodo: '', regional: '', churn: '' };
+      const dados = { periodo: '', regional: '', cidade: '', baseRef: '', cancelados: '', canceladosChurn: '', churn: '' };
 
       if (headers.length) {
         headers.forEach((key, idx) => {
@@ -853,6 +1053,10 @@ export default function VendasMensaisPage() {
         dados.regional = colunas[1] ?? '';
         dados.churn = colunas[2] ?? '';
       }
+
+      // Compatibilidade entre formatos de arquivo
+      if (!dados.churn && dados.cancelados) dados.churn = dados.cancelados;
+      if (!dados.churn && dados.canceladosChurn) dados.churn = dados.canceladosChurn;
 
       return dados;
     });
@@ -876,6 +1080,8 @@ export default function VendasMensaisPage() {
       let sucesso = 0;
       let falhas = 0;
       const detalhesFalhas = [];
+      const colaboradoresCache = [...colaboradores];
+      const payloadLote = [];
 
       registros.forEach((registro, idx) => {
         registro.__linha = idx + 1;
@@ -883,9 +1089,18 @@ export default function VendasMensaisPage() {
 
       for (const registro of registros) {
         const periodo = parsePeriodo(registro.periodo);
-        const vendedorId = localizarVendedor(registro.vendedor);
-        const regionalId = localizarRegional(registro.regional);
-        const vendedor = colaboradores.find((c) => c.id === vendedorId);
+        let regionalId = localizarRegional(registro.regional, registro.cidade);
+        const vendedorGlobal = colaboradoresCache.find(
+          (c) => normalizarNome(c.nome) === normalizarNome(registro.vendedor)
+        );
+        if (!regionalId && vendedorGlobal?.regional_id) {
+          regionalId = vendedorGlobal.regional_id;
+        }
+        const vendedorId = await resolverVendedorParaImportacao(
+          registro.vendedor,
+          regionalId,
+          colaboradoresCache
+        );
 
         if (!periodo || !vendedorId || !regionalId) {
           falhas++;
@@ -895,17 +1110,16 @@ export default function VendasMensaisPage() {
           });
           continue;
         }
-
-        if (vendedor && vendedor.regional_id !== regionalId) {
+        if (!registroTemValores(registro)) {
           falhas++;
           detalhesFalhas.push({
             linha: registro.__linha,
-            motivo: 'Vendedor nao pertence a regional informada'
+            motivo: 'Linha sem valores de venda (todos os campos zerados/vazios)'
           });
           continue;
         }
 
-        await vendasMensaisAPI.criar({
+        payloadLote.push({
           periodo,
           vendedorId,
           regionalId,
@@ -927,8 +1141,13 @@ export default function VendasMensaisPage() {
         sucesso++;
       }
 
+      if (payloadLote.length > 0) {
+        await vendasMensaisAPI.importarLote(payloadLote);
+      }
+
       setMensagem(`Importacao concluida: ${sucesso} registros OK, ${falhas} falhas`);
       setFalhasLoteVendas(detalhesFalhas);
+      setColaboradores(colaboradoresCache);
       setTextoLoteVendas('');
       setModoLoteVendas(false);
       await carregarDados();
@@ -958,30 +1177,62 @@ export default function VendasMensaisPage() {
       let sucesso = 0;
       let falhas = 0;
       const detalhesFalhas = [];
+      const agregados = new Map();
 
       registros.forEach((registro, idx) => {
         registro.__linha = idx + 1;
       });
 
       for (const registro of registros) {
-        const periodo = parsePeriodo(registro.periodo);
-        const regionalId = localizarRegional(registro.regional);
+        const periodo = parsePeriodo(registro.periodo || periodoLoteChurn || filtroPeriodo || churnForm.periodo);
+        const regionalId = localizarRegional(registro.regional, registro.cidade);
+        const cidadeNormalizada = normalizarNome(registro.cidade);
+
+        // Ignora linhas-resumo ("Total") vindas do Excel
+        if (cidadeNormalizada === 'total' && !registro.regional) {
+          continue;
+        }
 
         if (!periodo || !regionalId) {
           falhas++;
           detalhesFalhas.push({
             linha: registro.__linha,
-            motivo: 'Periodo ou regional invalido'
+            motivo: 'Periodo, regional ou cidade invalida (mapeamento nao encontrado)'
           });
           continue;
         }
 
-        await churnRegionaisAPI.criarOuAtualizar({
+        const chave = `${periodo}::${regionalId}`;
+        const atual = agregados.get(chave) || {
           periodo,
           regionalId,
-          churn: normalizarNumero(registro.churn)
-        });
-        sucesso++;
+          churn: 0,
+          baseRef: 0,
+          canceladosChurn: 0
+        };
+
+        const canceladosChurn = normalizarNumero(
+          registro.cancelados || registro.canceladosChurn || registro.churn
+        );
+        const baseRef = normalizarNumero(registro.baseRef);
+
+        atual.canceladosChurn += canceladosChurn;
+        atual.churn += canceladosChurn;
+        atual.baseRef += baseRef;
+        agregados.set(chave, atual);
+      }
+
+      const payloadLote = Array.from(agregados.values()).map((item) => ({
+          periodo: item.periodo,
+          regionalId: item.regionalId,
+          churn: item.churn,
+          baseRef: item.baseRef,
+          canceladosChurn: item.canceladosChurn
+        }));
+
+      if (payloadLote.length > 0) {
+        await churnRegionaisAPI.importarLote(payloadLote);
+        sucesso = payloadLote.length;
       }
 
       setMensagem(`Importacao concluida: ${sucesso} registros OK, ${falhas} falhas`);
@@ -1001,16 +1252,40 @@ export default function VendasMensaisPage() {
     const arquivo = e.target.files?.[0];
     if (!arquivo) return;
 
+    const nome = arquivo.name.toLowerCase();
     const leitor = new FileReader();
-    leitor.onload = () => {
-      const conteudo = String(leitor.result || '');
-      if (tipo === 'vendas') {
-        setTextoLoteVendas(conteudo);
-      } else {
-        setTextoLoteChurn(conteudo);
+    leitor.onload = (ev) => {
+      try {
+        let conteudo = '';
+
+        if (nome.endsWith('.xlsx') || nome.endsWith('.xls')) {
+          const data = new Uint8Array(ev.target?.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+          const linhas = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' })
+            .filter((linha) => Array.isArray(linha) && linha.some((cel) => String(cel).trim() !== ''))
+            .map((linha) => linha.map((cel) => String(cel ?? '').trim()).join(';'));
+          conteudo = linhas.join('\n');
+        } else {
+          conteudo = String(ev.target?.result || '');
+        }
+
+        if (tipo === 'vendas') {
+          setTextoLoteVendas(conteudo);
+        } else {
+          setTextoLoteChurn(conteudo);
+        }
+      } catch (error) {
+        console.error(error);
+        setErro('Erro ao processar arquivo de importacao');
       }
     };
-    leitor.readAsText(arquivo);
+
+    if (nome.endsWith('.xlsx') || nome.endsWith('.xls')) {
+      leitor.readAsArrayBuffer(arquivo);
+    } else {
+      leitor.readAsText(arquivo);
+    }
   };
 
   const vendasFiltradas = useMemo(() => {
@@ -1103,11 +1378,11 @@ export default function VendasMensaisPage() {
             <strong>{usuario.nome}</strong>
             <p>{usuario.email}</p>
             <p style={{ fontSize: '12px', color: 'var(--primary)' }}>
-              🏷️ {perfil.toUpperCase()}
+              {perfil.toUpperCase()}
             </p>
           </div>
           <button className="btn-sair" onClick={handleLogout}>
-            🚪 Sair do Sistema
+            Sair do Sistema
           </button>
         </div>
       </aside>
@@ -1115,7 +1390,7 @@ export default function VendasMensaisPage() {
       <main className="main-content">
         <header className="content-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <h1>📈 Vendas Mensais & Churn</h1>
+            <h1>Vendas Mensais & Churn</h1>
             <p>Cadastre as vendas por vendedor e o churn por regional</p>
           </div>
           <button 
@@ -1124,7 +1399,7 @@ export default function VendasMensaisPage() {
             onClick={() => setModalImportadorAberto(true)}
             style={{ height: 'fit-content' }}
           >
-            📥 Importar Excel
+            Importar Excel
           </button>
         </header>
 
@@ -1136,7 +1411,7 @@ export default function VendasMensaisPage() {
           <form onSubmit={handleSubmit}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
               <div className="form-group">
-                <label className="form-label">Período</label>
+                <label className="form-label">Periodo</label>
                 <select
                   name="periodo"
                   className="form-select"
@@ -1144,7 +1419,7 @@ export default function VendasMensaisPage() {
                   onChange={handleChange}
                   required
                 >
-                  <option value="">Selecione o período</option>
+                  <option value="">Selecione o periodo</option>
                   {periodosDisponiveis.map((p) => (
                     <option key={p} value={p}>{p}</option>
                   ))}
@@ -1244,7 +1519,7 @@ export default function VendasMensaisPage() {
 
             <div style={{ display: 'flex', gap: '12px', marginTop: '20px' }}>
               <button type="submit" className="btn btn-success" disabled={carregando}>
-                {editandoVendaId ? '✓ Atualizar' : '✓ Registrar'}
+                {editandoVendaId ? 'Atualizar' : 'Registrar'}
               </button>
               {editandoVendaId && (
                 <button type="button" className="btn btn-secondary" onClick={handleCancelarEdicao}>
@@ -1259,7 +1534,7 @@ export default function VendasMensaisPage() {
           <h3>Importacao em Lote - Vendas (Texto)</h3>
           <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
             <button className="btn btn-primary" onClick={() => setModoLoteVendas(!modoLoteVendas)}>
-              📋 {modoLoteVendas ? 'Ocultar' : 'Mostrar'} Importacao Lote
+              {modoLoteVendas ? 'Ocultar' : 'Mostrar'} Importacao Lote
             </button>
             <button className="btn btn-secondary" type="button" onClick={() => setTextoLoteVendas('')}>
               Limpar texto
@@ -1275,13 +1550,13 @@ export default function VendasMensaisPage() {
                 rows="8"
                 value={textoLoteVendas}
                 onChange={(e) => setTextoLoteVendas(e.target.value)}
-                placeholder="Fev/26;João Silva;São Paulo;100;5000&#10;Fev/26;Maria Santos;Rio de Janeiro;80;4000"
+                placeholder="Fev/26;Joao Silva;Sao Paulo;100;5000&#10;Fev/26;Maria Santos;Rio de Janeiro;80;4000"
                 style={{ fontFamily: 'monospace', marginBottom: '12px' }}
               />
               <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                <input type="file" accept=".csv,.txt" onChange={(e) => handleArquivoLote(e, 'vendas')} />
+                <input type="file" accept=".xlsx,.xls,.csv,.txt" onChange={(e) => handleArquivoLote(e, 'vendas')} />
                 <button type="button" className="btn btn-success" onClick={processarLoteVendas} disabled={carregando}>
-                  ✓ Importar Vendas em Lote
+                  Importar Vendas em Lote
                 </button>
               </div>
               {falhasLoteVendas.length > 0 && (
@@ -1316,16 +1591,152 @@ export default function VendasMensaisPage() {
         <ImportadorVendas
           onImportar={handleImportarVendas}
           regionais={regionais}
+          regionalCidades={regionalCidades}
           colaboradores={colaboradores}
           carregando={carregando}
         />
+
+        <div className="glass-card">
+          <h3>Importacao por PDF (1 tipo por arquivo)</h3>
+          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '8px' }}>
+            O sistema busca a cidade em contratos e aloca automaticamente na regional.
+          </p>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px', marginTop: '12px' }}>
+            <div className="form-group">
+              <label className="form-label">Tipo do Evento</label>
+              <select
+                className="form-select"
+                value={tipoEventoPdf}
+                onChange={(e) => setTipoEventoPdf(e.target.value)}
+              >
+                <option value="vendas">Vendas</option>
+                <option value="planoEvento">Plano Evento</option>
+                <option value="mudancaTitularidade">Mudanca de Titularidade</option>
+                <option value="migracaoTecnologia">Migracao de Tecnologia</option>
+                <option value="renovacao">Renovacao</option>
+                <option value="sva">SVA</option>
+                <option value="telefonia">Telefonia</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Periodo</label>
+              <select
+                className="form-select"
+                value={periodoPdf}
+                onChange={(e) => setPeriodoPdf(e.target.value)}
+              >
+                <option value="">Detectar pelo arquivo</option>
+                {periodosDisponiveis.map((p) => (
+                  <option key={`pdf-${p}`} value={p}>{p}</option>
+                ))}
+              </select>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Arquivo PDF</label>
+              <input
+                type="file"
+                className="form-control"
+                accept=".pdf"
+                onChange={(e) => setArquivoPdfEvento(e.target.files?.[0] || null)}
+              />
+            </div>
+          </div>
+
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', marginTop: '12px' }}>
+            <input
+              type="checkbox"
+              checked={sobrescreverTipoPdf}
+              onChange={(e) => setSobrescreverTipoPdf(e.target.checked)}
+            />
+            Sobrescrever apenas este tipo no(s) periodo(s) importado(s)
+          </label>
+
+          <div style={{ marginTop: '12px' }}>
+            <button type="button" className="btn btn-success" onClick={handleImportarPdfEvento} disabled={carregando}>
+              Importar PDF
+            </button>
+          </div>
+
+          {resultadoImportacaoPdf && (
+            <div style={{ marginTop: '12px' }}>
+              <div className="alert alert-info">
+                <strong>Resultado:</strong> {resultadoImportacaoPdf.mensagem}
+                <br />
+                Linhas lidas: {resultadoImportacaoPdf.linhasLidas || 0}
+                {' | '}
+                Linhas importadas: {resultadoImportacaoPdf.linhasImportadas || 0}
+                {' | '}
+                Pendencias: {resultadoImportacaoPdf.totalPendencias || 0}
+                {' | '}
+                Descartadas por regra: {resultadoImportacaoPdf.totalDescartadasPorRegra || 0}
+              </div>
+              {(resultadoImportacaoPdf.resumoDescartesRegra || []).length > 0 && (
+                <div style={{ marginBottom: '12px' }}>
+                  <strong>Resumo de descartes por regra:</strong>
+                  <ul style={{ margin: '8px 0 0 18px' }}>
+                    {(resultadoImportacaoPdf.resumoDescartesRegra || []).map((item, idx) => (
+                      <li key={`pdf-desc-res-${idx}`}>{item.motivo}: {item.total}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {(resultadoImportacaoPdf.pendencias || []).length > 0 && (
+                <div className="table-responsive">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Linha</th>
+                        <th>Cliente</th>
+                        <th>Motivo</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(resultadoImportacaoPdf.pendencias || []).slice(0, 20).map((item, idx) => (
+                        <tr key={`pdf-pend-${idx}`}>
+                          <td>{item.linha}</td>
+                          <td>{item.clienteId || '-'}</td>
+                          <td>{item.motivo || '-'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              {(resultadoImportacaoPdf.descartadasPorRegra || []).length > 0 && (
+                <div className="table-responsive" style={{ marginTop: '12px' }}>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Linha</th>
+                        <th>Cliente</th>
+                        <th>Plano</th>
+                        <th>Motivo</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(resultadoImportacaoPdf.descartadasPorRegra || []).slice(0, 20).map((item, idx) => (
+                        <tr key={`pdf-desc-${idx}`}>
+                          <td>{item.linha}</td>
+                          <td>{item.clienteId || '-'}</td>
+                          <td>{item.plano || '-'}</td>
+                          <td>{item.motivo || '-'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
 
         <div className="glass-card">
           <h3>Cadastro de Churn por Regional</h3>
           <form onSubmit={handleSalvarChurn}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
               <div className="form-group">
-                <label className="form-label">Período</label>
+                <label className="form-label">Periodo</label>
                 <select
                   name="periodo"
                   className="form-select"
@@ -1333,7 +1744,7 @@ export default function VendasMensaisPage() {
                   onChange={handleChurnChange}
                   required
                 >
-                  <option value="">Selecione o período</option>
+                  <option value="">Selecione o periodo</option>
                   {periodosDisponiveis.map((p) => (
                     <option key={p} value={p}>{p}</option>
                   ))}
@@ -1367,7 +1778,7 @@ export default function VendasMensaisPage() {
             </div>
             <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
               <button type="submit" className="btn btn-success" disabled={carregando}>
-                ✓ Salvar Churn
+                Salvar Churn
               </button>
             </div>
           </form>
@@ -1377,7 +1788,7 @@ export default function VendasMensaisPage() {
           <h3>Importacao em Lote - Churn</h3>
           <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
             <button className="btn btn-primary" onClick={() => setModoLoteChurn(!modoLoteChurn)}>
-              📋 {modoLoteChurn ? 'Ocultar' : 'Mostrar'} Importacao
+              {modoLoteChurn ? 'Ocultar' : 'Mostrar'} Importacao
             </button>
             <button className="btn btn-secondary" type="button" onClick={() => setTextoLoteChurn('')}>
               Limpar texto
@@ -1386,20 +1797,33 @@ export default function VendasMensaisPage() {
           {modoLoteChurn && (
             <>
               <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-                Formato: Periodo | Regional | Churn
+                Formato aceito: (1) Periodo | Regional | Churn ou (2) Cidade | Base Ref. | Cancelados
               </p>
+              <div style={{ maxWidth: '220px', marginBottom: '12px' }}>
+                <label className="form-label">Periodo da importacao</label>
+                <select
+                  className="form-select"
+                  value={periodoLoteChurn}
+                  onChange={(e) => setPeriodoLoteChurn(e.target.value)}
+                >
+                  <option value="">Selecione</option>
+                  {periodosDisponiveis.map((p) => (
+                    <option key={`lote-churn-${p}`} value={p}>{p}</option>
+                  ))}
+                </select>
+              </div>
               <textarea
                 className="form-control"
                 rows="6"
                 value={textoLoteChurn}
                 onChange={(e) => setTextoLoteChurn(e.target.value)}
-                placeholder="Fev/26;Sao Paulo;2.5"
+                placeholder="Ex 1: Fev/26;Ji-Parana;55\nEx 2: Ji-Parana;18224;55 (Cancelados)"
                 style={{ fontFamily: 'monospace', marginBottom: '12px' }}
               />
               <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                <input type="file" accept=".csv,.txt" onChange={(e) => handleArquivoLote(e, 'churn')} />
+                <input type="file" accept=".xlsx,.xls,.csv,.txt" onChange={(e) => handleArquivoLote(e, 'churn')} />
                 <button type="button" className="btn btn-success" onClick={processarLoteChurn} disabled={carregando}>
-                  ✓ Importar Churn
+                  Importar Churn
                 </button>
               </div>
               {falhasLoteChurn.length > 0 && (
@@ -1440,7 +1864,7 @@ export default function VendasMensaisPage() {
               value={filtroPeriodo}
               onChange={(e) => setFiltroPeriodo(e.target.value)}
             >
-              <option value="">Todos os períodos</option>
+              <option value="">Todos os periodos</option>
               {periodosDisponiveis.map((p) => (
                 <option key={p} value={p}>{p}</option>
               ))}
@@ -1468,11 +1892,11 @@ export default function VendasMensaisPage() {
               ))}
             </select>
             <button className="btn btn-secondary" type="button" onClick={exportarCSV}>
-              ⬇️ Exportar CSV
+              Exportar CSV
             </button>
             {selecionadosVendas.size > 0 && (
               <button className="btn btn-danger" type="button" onClick={deletarVendasEmMassa} disabled={carregando}>
-                🗑️ Deletar Selecionados ({selecionadosVendas.size})
+                Deletar Selecionados ({selecionadosVendas.size})
               </button>
             )}
           </div>
@@ -1514,19 +1938,19 @@ export default function VendasMensaisPage() {
                           />
                         </td>
                         <td>{registro.periodo}</td>
-                        <td>{colaboradoresMap.get(registro.vendedor_id) || '—'}</td>
-                        <td>{regionaisMap.get(registro.regional_id) || '—'}</td>
+                        <td>{colaboradoresMap.get(registro.vendedor_id) || '-'}</td>
+                        <td>{regionaisMap.get(registro.regional_id) || '-'}</td>
                         <td>{registro.vendas_volume || 0}</td>
                         <td>{registro.vendas_financeiro || 0}</td>
                         <td>{
-                          churnFiltrado.find((c) => c.regional_id === registro.regional_id)?.churn ?? '—'
+                          churnFiltrado.find((c) => c.regional_id === registro.regional_id)?.churn ?? '-'
                         }</td>
                         <td>
                           <button className="btn btn-secondary btn-small" onClick={() => handleEditarVenda(registro)}>
-                            ✏️ Editar
+                            Editar
                           </button>
                           <button className="btn btn-danger btn-small" onClick={() => handleDeletarVenda(registro.id)} style={{ marginLeft: '8px' }}>
-                            🗑️
+                            Excluir
                           </button>
                         </td>
                       </tr>
@@ -1543,7 +1967,7 @@ export default function VendasMensaisPage() {
             <h3 style={{ margin: 0 }}>Churn por Regional</h3>
             {selecionadosChurn.size > 0 && (
               <button className="btn btn-danger" type="button" onClick={deletarChurnEmMassa} disabled={carregando}>
-                🗑️ Deletar Selecionados ({selecionadosChurn.size})
+                Deletar Selecionados ({selecionadosChurn.size})
               </button>
             )}
           </div>
@@ -1581,11 +2005,11 @@ export default function VendasMensaisPage() {
                           />
                         </td>
                         <td>{registro.periodo}</td>
-                        <td>{regionaisMap.get(registro.regional_id) || '—'}</td>
+                        <td>{regionaisMap.get(registro.regional_id) || '-'}</td>
                         <td>{registro.churn}</td>
                         <td>
                           <button className="btn btn-danger btn-small" onClick={() => handleDeletarChurn(registro.id)}>
-                            🗑️
+                            Excluir
                           </button>
                         </td>
                       </tr>
@@ -1633,7 +2057,7 @@ export default function VendasMensaisPage() {
                 backgroundColor: '#f8f9fa',
                 zIndex: 10000
               }}>
-                <h2 style={{ margin: 0, color: '#333' }}>📥 Importar Vendas</h2>
+                <h2 style={{ margin: 0, color: '#333' }}>Importar Vendas</h2>
                 <button
                   type="button"
                   onClick={() => setModalImportadorAberto(false)}
@@ -1651,13 +2075,14 @@ export default function VendasMensaisPage() {
                     justifyContent: 'center'
                   }}
                 >
-                  ✕
+                  X
                 </button>
               </div>
               <div style={{ padding: '20px' }}>
                 <ImportadorVendas
                   onImportar={handleImportarVendas}
                   regionais={regionais}
+                  regionalCidades={regionalCidades}
                   colaboradores={colaboradores}
                   carregando={carregando}
                   periodosDisponiveis={periodosDisponiveis}
@@ -1670,3 +2095,5 @@ export default function VendasMensaisPage() {
     </div>
   );
 }
+
+

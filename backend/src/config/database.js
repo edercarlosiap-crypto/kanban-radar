@@ -6,12 +6,30 @@ const fs = require('fs');
 const dbClient = (process.env.DB_CLIENT || 'sqlite').toLowerCase();
 const usePostgres = dbClient === 'postgres';
 
+const backendRoot = path.resolve(__dirname, '../..');
+const projectRoot = path.resolve(backendRoot, '..');
 const dbPathEnv = process.env.DB_PATH;
-const dbPathDefault = path.join(__dirname, '../../../database.db');
-const dbPathAlt = path.join(__dirname, '../../database.db');
+const dbPathDefault = path.join(backendRoot, 'database.db');
+const dbPathLegacy = path.join(projectRoot, 'database.db');
 const dbPath = dbPathEnv
-  ? path.resolve(dbPathEnv)
-  : (fs.existsSync(dbPathDefault) ? dbPathDefault : dbPathAlt);
+  ? (path.isAbsolute(dbPathEnv) ? dbPathEnv : path.resolve(backendRoot, dbPathEnv))
+  : dbPathDefault;
+
+if (!dbPathEnv && fs.existsSync(dbPathLegacy) && dbPathLegacy !== dbPathDefault) {
+  if (fs.existsSync(dbPathDefault)) {
+    const defaultSize = fs.statSync(dbPathDefault).size;
+    const legacySize = fs.statSync(dbPathLegacy).size;
+    if (legacySize > 0 && legacySize !== defaultSize) {
+      console.warn(
+        `[DB] Banco legado detectado em "${dbPathLegacy}" com tamanho diferente do oficial "${dbPathDefault}".`
+      );
+    }
+  } else {
+    console.warn(
+      `[DB] Banco oficial nao encontrado em "${dbPathDefault}", mas banco legado existe em "${dbPathLegacy}".`
+    );
+  }
+}
 
 let sqliteDb;
 let pgPool;
@@ -89,6 +107,13 @@ async function createPostgresSchema() {
       ativo INTEGER DEFAULT 1,
       datacriacao TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
     )`,
+    `CREATE TABLE IF NOT EXISTS regional_cidades (
+      id TEXT PRIMARY KEY,
+      cidade TEXT UNIQUE NOT NULL,
+      regional_id TEXT,
+      ativo INTEGER DEFAULT 1,
+      datacriacao TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    )`,
     `CREATE TABLE IF NOT EXISTS funcoes (
       id TEXT PRIMARY KEY,
       nome TEXT UNIQUE NOT NULL,
@@ -140,6 +165,8 @@ async function createPostgresSchema() {
       regional_id TEXT NOT NULL,
       funcao_id TEXT,
       status TEXT DEFAULT 'ativo',
+      data_ativacao TIMESTAMPTZ,
+      data_inativacao TIMESTAMPTZ,
       data_criacao TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
     )`,
     `CREATE TABLE IF NOT EXISTS vendas (
@@ -178,9 +205,105 @@ async function createPostgresSchema() {
       periodo TEXT NOT NULL,
       regional_id TEXT NOT NULL,
       churn REAL NOT NULL,
+      base_ref REAL DEFAULT 0,
+      cancelados_churn REAL DEFAULT 0,
       datacriacao TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
       dataatualizacao TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
       UNIQUE (periodo, regional_id)
+    )`,
+    `CREATE TABLE IF NOT EXISTS retencao_atendimentos (
+      id TEXT PRIMARY KEY,
+      tipo_registro TEXT NOT NULL,
+      data_atendimento DATE NOT NULL,
+      periodo TEXT NOT NULL,
+      atendente TEXT NOT NULL,
+      cliente_id TEXT,
+      nome_completo TEXT NOT NULL,
+      filial TEXT NOT NULL,
+      contrato_id TEXT,
+      houve_chamado_anterior INTEGER DEFAULT 0,
+      qtd_chamados INTEGER DEFAULT 0,
+      origem_chamada TEXT,
+      motivo TEXT,
+      submotivo TEXT,
+      cliente_aceitou_acordo INTEGER DEFAULT 0,
+      tipo_atendimento TEXT,
+      possui_multa_contratual INTEGER DEFAULT 0,
+      possui_proporcional_mensalidade INTEGER DEFAULT 0,
+      equipamentos TEXT,
+      resultado_tratativa TEXT,
+      historico TEXT,
+      origem_arquivo TEXT,
+      assinatura TEXT UNIQUE,
+      datacriacao TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+      dataatualizacao TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE TABLE IF NOT EXISTS contratos_base (
+      id TEXT PRIMARY KEY,
+      periodo_referencia TEXT NOT NULL,
+      empresa TEXT,
+      filial TEXT,
+      contrato_id TEXT,
+      cliente_id TEXT,
+      tipo_assinante TEXT,
+      tipo_cliente TEXT,
+      origem TEXT,
+      status TEXT,
+      status_acesso TEXT,
+      base TEXT,
+      descricao_servico TEXT,
+      tipo_produto TEXT,
+      tipo_contrato TEXT,
+      tipo_cobranca TEXT,
+      carteira_cobranca TEXT,
+      vendedor TEXT,
+      valor REAL DEFAULT 0,
+      cidade TEXT,
+      uf TEXT,
+      dt_criacao_contrato DATE,
+      dt_ativacao DATE,
+      dt_cancelamento DATE,
+      chave_negocio TEXT UNIQUE,
+      origem_arquivo TEXT,
+      datacriacao TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+      dataatualizacao TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE TABLE IF NOT EXISTS marketing_lancamentos (
+      id TEXT PRIMARY KEY,
+      ano_referencia INTEGER NOT NULL,
+      mes_referencia INTEGER,
+      regional TEXT,
+      tipo_lancamento TEXT,
+      tipo_custo TEXT,
+      patrocinador TEXT,
+      projeto TEXT,
+      valor REAL DEFAULT 0,
+      data_inicio DATE,
+      data_fim DATE,
+      status TEXT,
+      observacoes TEXT,
+      origem_arquivo TEXT,
+      datacriacao TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+      dataatualizacao TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE TABLE IF NOT EXISTS marketing_orcamentos (
+      id TEXT PRIMARY KEY,
+      ano_referencia INTEGER NOT NULL,
+      mes_referencia INTEGER NOT NULL,
+      categoria TEXT NOT NULL,
+      valor_orcado REAL DEFAULT 0,
+      origem_arquivo TEXT,
+      datacriacao TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+      dataatualizacao TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE TABLE IF NOT EXISTS comissao_lideranca_regras (
+      id TEXT PRIMARY KEY,
+      periodo TEXT UNIQUE NOT NULL,
+      gerenteRegionalMultiplier REAL DEFAULT 1.2,
+      supervisorRegionalMultiplier REAL DEFAULT 1.0,
+      gerenteMatrizMultiplier REAL DEFAULT 2.4,
+      datacriacao TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+      dataatualizacao TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
     )`,
     `ALTER TABLE regras_comissao ADD COLUMN IF NOT EXISTS periodo TEXT DEFAULT 'Dez/25'`,
     `ALTER TABLE regras_comissao ADD COLUMN IF NOT EXISTS meta1percentindividual REAL DEFAULT 0`,
@@ -188,15 +311,77 @@ async function createPostgresSchema() {
     `ALTER TABLE regras_comissao ADD COLUMN IF NOT EXISTS meta3percentindividual REAL DEFAULT 0`,
     `ALTER TABLE colaboradores ADD COLUMN IF NOT EXISTS cpf TEXT`,
     `ALTER TABLE colaboradores ADD COLUMN IF NOT EXISTS funcao_id TEXT`,
+    `ALTER TABLE colaboradores ADD COLUMN IF NOT EXISTS data_ativacao TIMESTAMPTZ`,
+    `ALTER TABLE colaboradores ADD COLUMN IF NOT EXISTS data_inativacao TIMESTAMPTZ`,
+    `UPDATE colaboradores
+        SET data_ativacao = COALESCE(data_ativacao, data_criacao, CURRENT_TIMESTAMP)
+      WHERE LOWER(COALESCE(status, '')) = 'ativo'
+        AND data_ativacao IS NULL`,
+    `ALTER TABLE churn_regionais ADD COLUMN IF NOT EXISTS base_ref REAL DEFAULT 0`,
+    `ALTER TABLE churn_regionais ADD COLUMN IF NOT EXISTS cancelados_churn REAL DEFAULT 0`,
+    `ALTER TABLE retencao_atendimentos ADD COLUMN IF NOT EXISTS tipo_registro TEXT`,
+    `ALTER TABLE retencao_atendimentos ADD COLUMN IF NOT EXISTS data_atendimento DATE`,
+    `ALTER TABLE retencao_atendimentos ADD COLUMN IF NOT EXISTS periodo TEXT`,
+    `ALTER TABLE retencao_atendimentos ADD COLUMN IF NOT EXISTS atendente TEXT`,
+    `ALTER TABLE retencao_atendimentos ADD COLUMN IF NOT EXISTS cliente_id TEXT`,
+    `ALTER TABLE retencao_atendimentos ADD COLUMN IF NOT EXISTS nome_completo TEXT`,
+    `ALTER TABLE retencao_atendimentos ADD COLUMN IF NOT EXISTS filial TEXT`,
+    `ALTER TABLE retencao_atendimentos ADD COLUMN IF NOT EXISTS contrato_id TEXT`,
+    `ALTER TABLE retencao_atendimentos ADD COLUMN IF NOT EXISTS houve_chamado_anterior INTEGER DEFAULT 0`,
+    `ALTER TABLE retencao_atendimentos ADD COLUMN IF NOT EXISTS qtd_chamados INTEGER DEFAULT 0`,
+    `ALTER TABLE retencao_atendimentos ADD COLUMN IF NOT EXISTS origem_chamada TEXT`,
+    `ALTER TABLE retencao_atendimentos ADD COLUMN IF NOT EXISTS motivo TEXT`,
+    `ALTER TABLE retencao_atendimentos ADD COLUMN IF NOT EXISTS submotivo TEXT`,
+    `ALTER TABLE retencao_atendimentos ADD COLUMN IF NOT EXISTS cliente_aceitou_acordo INTEGER DEFAULT 0`,
+    `ALTER TABLE retencao_atendimentos ADD COLUMN IF NOT EXISTS tipo_atendimento TEXT`,
+    `ALTER TABLE retencao_atendimentos ADD COLUMN IF NOT EXISTS possui_multa_contratual INTEGER DEFAULT 0`,
+    `ALTER TABLE retencao_atendimentos ADD COLUMN IF NOT EXISTS possui_proporcional_mensalidade INTEGER DEFAULT 0`,
+    `ALTER TABLE retencao_atendimentos ADD COLUMN IF NOT EXISTS equipamentos TEXT`,
+    `ALTER TABLE retencao_atendimentos ADD COLUMN IF NOT EXISTS resultado_tratativa TEXT`,
+    `ALTER TABLE retencao_atendimentos ADD COLUMN IF NOT EXISTS historico TEXT`,
+    `ALTER TABLE retencao_atendimentos ADD COLUMN IF NOT EXISTS origem_arquivo TEXT`,
+    `ALTER TABLE retencao_atendimentos ADD COLUMN IF NOT EXISTS assinatura TEXT`,
     `CREATE INDEX IF NOT EXISTS idx_usuarios_email ON usuarios(email)`,
     `CREATE INDEX IF NOT EXISTS idx_colaboradores_regional ON colaboradores(regional_id)`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS uq_colaboradores_nome_regional_ci ON colaboradores(regional_id, LOWER(TRIM(nome)))`,
+    `CREATE INDEX IF NOT EXISTS idx_regional_cidades_cidade ON regional_cidades(cidade)`,
+    `CREATE INDEX IF NOT EXISTS idx_regional_cidades_regional ON regional_cidades(regional_id)`,
     `CREATE INDEX IF NOT EXISTS idx_colaboradores_funcao ON colaboradores(funcao_id)`,
     `CREATE INDEX IF NOT EXISTS idx_regras_regional_periodo ON regras_comissao(regionalid, periodo)`,
     `CREATE INDEX IF NOT EXISTS idx_regras_tipometa ON regras_comissao(tipometa)`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS uq_regras_periodo_regional_tipometa_ci ON regras_comissao(periodo, regionalid, LOWER(TRIM(tipometa)))`,
     `CREATE INDEX IF NOT EXISTS idx_vendas_mensais_periodo ON vendas_mensais(periodo)`,
     `CREATE INDEX IF NOT EXISTS idx_vendas_mensais_regional ON vendas_mensais(regional_id)`,
     `CREATE INDEX IF NOT EXISTS idx_vendas_mensais_vendedor ON vendas_mensais(vendedor_id)`,
-    `CREATE INDEX IF NOT EXISTS idx_churn_periodo_regional ON churn_regionais(periodo, regional_id)`
+    `CREATE UNIQUE INDEX IF NOT EXISTS uq_vendas_mensais_periodo_vendedor_regional ON vendas_mensais(periodo, vendedor_id, regional_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_vendas_mensais_vendedor_regional_periodo ON vendas_mensais(vendedor_id, regional_id, periodo)`,
+    `CREATE INDEX IF NOT EXISTS idx_churn_periodo_regional ON churn_regionais(periodo, regional_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_lideranca_periodo ON comissao_lideranca_regras(periodo)`,
+    `CREATE INDEX IF NOT EXISTS idx_retencao_periodo ON retencao_atendimentos(periodo)`,
+    `CREATE INDEX IF NOT EXISTS idx_retencao_tipo ON retencao_atendimentos(tipo_registro)`,
+    `CREATE INDEX IF NOT EXISTS idx_retencao_filial ON retencao_atendimentos(filial)`,
+    `CREATE INDEX IF NOT EXISTS idx_retencao_assinatura ON retencao_atendimentos(assinatura)`,
+    `CREATE INDEX IF NOT EXISTS idx_retencao_tipo_periodo_data ON retencao_atendimentos(tipo_registro, periodo, data_atendimento DESC)`,
+    `CREATE INDEX IF NOT EXISTS idx_retencao_periodo_data ON retencao_atendimentos(periodo, data_atendimento DESC)`,
+    `CREATE INDEX IF NOT EXISTS idx_retencao_tipo_periodo_filial_data_criacao ON retencao_atendimentos(tipo_registro, periodo, filial, data_atendimento DESC, dataCriacao DESC)`,
+    `CREATE INDEX IF NOT EXISTS idx_contratos_periodo ON contratos_base(periodo_referencia)`,
+    `CREATE INDEX IF NOT EXISTS idx_contratos_filial ON contratos_base(filial)`,
+    `CREATE INDEX IF NOT EXISTS idx_contratos_status ON contratos_base(status)`,
+    `CREATE INDEX IF NOT EXISTS idx_contratos_base ON contratos_base(base)`,
+    `CREATE INDEX IF NOT EXISTS idx_contratos_segmento ON contratos_base(tipo_assinante)`,
+    `CREATE INDEX IF NOT EXISTS idx_contratos_periodo_segmento ON contratos_base(periodo_referencia, tipo_assinante)`,
+    `CREATE INDEX IF NOT EXISTS idx_contratos_chave_negocio ON contratos_base(chave_negocio)`,
+    `CREATE INDEX IF NOT EXISTS idx_vendas_mensais_periodo_regional_data ON vendas_mensais(periodo, regional_id, dataCriacao DESC)`,
+    `CREATE INDEX IF NOT EXISTS idx_vendas_mensais_periodo_vendedor_data ON vendas_mensais(periodo, vendedor_id, dataCriacao DESC)`,
+    `CREATE INDEX IF NOT EXISTS idx_marketing_lancamentos_ano ON marketing_lancamentos(ano_referencia)`,
+    `CREATE INDEX IF NOT EXISTS idx_marketing_lancamentos_ano_mes ON marketing_lancamentos(ano_referencia, mes_referencia)`,
+    `CREATE INDEX IF NOT EXISTS idx_marketing_lancamentos_regional ON marketing_lancamentos(regional)`,
+    `CREATE INDEX IF NOT EXISTS idx_marketing_lancamentos_tipo_custo ON marketing_lancamentos(tipo_custo)`,
+    `CREATE INDEX IF NOT EXISTS idx_marketing_lancamentos_tipo_status ON marketing_lancamentos(tipo_lancamento, status)`,
+    `CREATE INDEX IF NOT EXISTS idx_marketing_orcamentos_ano ON marketing_orcamentos(ano_referencia)`,
+    `CREATE INDEX IF NOT EXISTS idx_marketing_orcamentos_ano_mes ON marketing_orcamentos(ano_referencia, mes_referencia)`,
+    `CREATE INDEX IF NOT EXISTS idx_marketing_orcamentos_categoria ON marketing_orcamentos(categoria)`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS uq_marketing_orcamentos_ano_mes_categoria ON marketing_orcamentos(ano_referencia, mes_referencia, LOWER(TRIM(categoria)))`
   ];
 
   for (const sql of statements) {
@@ -218,6 +403,12 @@ async function createPostgresSchema() {
 
 function createSqliteSchema() {
   sqliteDb.serialize(() => {
+    sqliteDb.run('PRAGMA journal_mode=WAL');
+    sqliteDb.run('PRAGMA synchronous=NORMAL');
+    sqliteDb.run('PRAGMA foreign_keys=ON');
+    sqliteDb.run('PRAGMA busy_timeout=10000');
+    sqliteDb.run('PRAGMA temp_store=MEMORY');
+
     sqliteDb.run(`
       CREATE TABLE IF NOT EXISTS usuarios (
         id TEXT PRIMARY KEY,
@@ -237,6 +428,17 @@ function createSqliteSchema() {
         nome TEXT UNIQUE NOT NULL,
         ativo INTEGER DEFAULT 1,
         dataCriacao DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    sqliteDb.run(`
+      CREATE TABLE IF NOT EXISTS regional_cidades (
+        id TEXT PRIMARY KEY,
+        cidade TEXT UNIQUE NOT NULL,
+        regional_id TEXT,
+        ativo INTEGER DEFAULT 1,
+        dataCriacao DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (regional_id) REFERENCES regionais(id)
       )
     `);
 
@@ -302,6 +504,8 @@ function createSqliteSchema() {
         regional_id TEXT NOT NULL,
         funcao_id TEXT,
         status TEXT DEFAULT 'ativo',
+        data_ativacao DATETIME,
+        data_inativacao DATETIME,
         data_criacao DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (regional_id) REFERENCES regionais(id),
         FOREIGN KEY (funcao_id) REFERENCES funcoes(id)
@@ -355,6 +559,8 @@ function createSqliteSchema() {
         periodo TEXT NOT NULL,
         regional_id TEXT NOT NULL,
         churn REAL NOT NULL,
+        base_ref REAL DEFAULT 0,
+        cancelados_churn REAL DEFAULT 0,
         dataCriacao DATETIME DEFAULT CURRENT_TIMESTAMP,
         dataAtualizacao DATETIME DEFAULT CURRENT_TIMESTAMP,
         UNIQUE (periodo, regional_id),
@@ -362,21 +568,192 @@ function createSqliteSchema() {
       )
     `);
 
+    sqliteDb.run(`
+      CREATE TABLE IF NOT EXISTS retencao_atendimentos (
+        id TEXT PRIMARY KEY,
+        tipo_registro TEXT NOT NULL,
+        data_atendimento DATE NOT NULL,
+        periodo TEXT NOT NULL,
+        atendente TEXT NOT NULL,
+        cliente_id TEXT,
+        nome_completo TEXT NOT NULL,
+        filial TEXT NOT NULL,
+        contrato_id TEXT,
+        houve_chamado_anterior INTEGER DEFAULT 0,
+        qtd_chamados INTEGER DEFAULT 0,
+        origem_chamada TEXT,
+        motivo TEXT,
+        submotivo TEXT,
+        cliente_aceitou_acordo INTEGER DEFAULT 0,
+        tipo_atendimento TEXT,
+        possui_multa_contratual INTEGER DEFAULT 0,
+        possui_proporcional_mensalidade INTEGER DEFAULT 0,
+        equipamentos TEXT,
+        resultado_tratativa TEXT,
+        historico TEXT,
+        origem_arquivo TEXT,
+        assinatura TEXT UNIQUE,
+        dataCriacao DATETIME DEFAULT CURRENT_TIMESTAMP,
+        dataAtualizacao DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    sqliteDb.run(`
+      CREATE TABLE IF NOT EXISTS contratos_base (
+        id TEXT PRIMARY KEY,
+        periodo_referencia TEXT NOT NULL,
+        empresa TEXT,
+        filial TEXT,
+        contrato_id TEXT,
+        cliente_id TEXT,
+        tipo_assinante TEXT,
+        tipo_cliente TEXT,
+        origem TEXT,
+        status TEXT,
+        status_acesso TEXT,
+        base TEXT,
+        descricao_servico TEXT,
+        tipo_produto TEXT,
+        tipo_contrato TEXT,
+        tipo_cobranca TEXT,
+        carteira_cobranca TEXT,
+        vendedor TEXT,
+        valor REAL DEFAULT 0,
+        cidade TEXT,
+        uf TEXT,
+        dt_criacao_contrato DATE,
+        dt_ativacao DATE,
+        dt_cancelamento DATE,
+        chave_negocio TEXT UNIQUE,
+        origem_arquivo TEXT,
+        dataCriacao DATETIME DEFAULT CURRENT_TIMESTAMP,
+        dataAtualizacao DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    sqliteDb.run(`
+      CREATE TABLE IF NOT EXISTS marketing_lancamentos (
+        id TEXT PRIMARY KEY,
+        ano_referencia INTEGER NOT NULL,
+        mes_referencia INTEGER,
+        regional TEXT,
+        tipo_lancamento TEXT,
+        tipo_custo TEXT,
+        patrocinador TEXT,
+        projeto TEXT,
+        valor REAL DEFAULT 0,
+        data_inicio DATE,
+        data_fim DATE,
+        status TEXT,
+        observacoes TEXT,
+        origem_arquivo TEXT,
+        dataCriacao DATETIME DEFAULT CURRENT_TIMESTAMP,
+        dataAtualizacao DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    sqliteDb.run(`
+      CREATE TABLE IF NOT EXISTS marketing_orcamentos (
+        id TEXT PRIMARY KEY,
+        ano_referencia INTEGER NOT NULL,
+        mes_referencia INTEGER NOT NULL,
+        categoria TEXT NOT NULL,
+        valor_orcado REAL DEFAULT 0,
+        origem_arquivo TEXT,
+        dataCriacao DATETIME DEFAULT CURRENT_TIMESTAMP,
+        dataAtualizacao DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    sqliteDb.run(`
+      CREATE TABLE IF NOT EXISTS comissao_lideranca_regras (
+        id TEXT PRIMARY KEY,
+        periodo TEXT UNIQUE NOT NULL,
+        gerenteRegionalMultiplier REAL DEFAULT 1.2,
+        supervisorRegionalMultiplier REAL DEFAULT 1.0,
+        gerenteMatrizMultiplier REAL DEFAULT 2.4,
+        dataCriacao DATETIME DEFAULT CURRENT_TIMESTAMP,
+        dataAtualizacao DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     sqliteDb.run('ALTER TABLE colaboradores ADD COLUMN cpf TEXT', () => {});
     sqliteDb.run('ALTER TABLE colaboradores ADD COLUMN funcao_id TEXT', () => {});
+    sqliteDb.run('ALTER TABLE colaboradores ADD COLUMN data_ativacao DATETIME', () => {});
+    sqliteDb.run('ALTER TABLE colaboradores ADD COLUMN data_inativacao DATETIME', () => {});
+    sqliteDb.run(`UPDATE colaboradores
+      SET data_ativacao = COALESCE(data_ativacao, data_criacao, CURRENT_TIMESTAMP)
+      WHERE LOWER(COALESCE(status, '')) = 'ativo'
+        AND data_ativacao IS NULL`);
+    sqliteDb.run('ALTER TABLE churn_regionais ADD COLUMN base_ref REAL DEFAULT 0', () => {});
+    sqliteDb.run('ALTER TABLE churn_regionais ADD COLUMN cancelados_churn REAL DEFAULT 0', () => {});
+    sqliteDb.run('ALTER TABLE retencao_atendimentos ADD COLUMN tipo_registro TEXT', () => {});
+    sqliteDb.run('ALTER TABLE retencao_atendimentos ADD COLUMN data_atendimento DATE', () => {});
+    sqliteDb.run('ALTER TABLE retencao_atendimentos ADD COLUMN periodo TEXT', () => {});
+    sqliteDb.run('ALTER TABLE retencao_atendimentos ADD COLUMN atendente TEXT', () => {});
+    sqliteDb.run('ALTER TABLE retencao_atendimentos ADD COLUMN cliente_id TEXT', () => {});
+    sqliteDb.run('ALTER TABLE retencao_atendimentos ADD COLUMN nome_completo TEXT', () => {});
+    sqliteDb.run('ALTER TABLE retencao_atendimentos ADD COLUMN filial TEXT', () => {});
+    sqliteDb.run('ALTER TABLE retencao_atendimentos ADD COLUMN contrato_id TEXT', () => {});
+    sqliteDb.run('ALTER TABLE retencao_atendimentos ADD COLUMN houve_chamado_anterior INTEGER DEFAULT 0', () => {});
+    sqliteDb.run('ALTER TABLE retencao_atendimentos ADD COLUMN qtd_chamados INTEGER DEFAULT 0', () => {});
+    sqliteDb.run('ALTER TABLE retencao_atendimentos ADD COLUMN origem_chamada TEXT', () => {});
+    sqliteDb.run('ALTER TABLE retencao_atendimentos ADD COLUMN motivo TEXT', () => {});
+    sqliteDb.run('ALTER TABLE retencao_atendimentos ADD COLUMN submotivo TEXT', () => {});
+    sqliteDb.run('ALTER TABLE retencao_atendimentos ADD COLUMN cliente_aceitou_acordo INTEGER DEFAULT 0', () => {});
+    sqliteDb.run('ALTER TABLE retencao_atendimentos ADD COLUMN tipo_atendimento TEXT', () => {});
+    sqliteDb.run('ALTER TABLE retencao_atendimentos ADD COLUMN possui_multa_contratual INTEGER DEFAULT 0', () => {});
+    sqliteDb.run('ALTER TABLE retencao_atendimentos ADD COLUMN possui_proporcional_mensalidade INTEGER DEFAULT 0', () => {});
+    sqliteDb.run('ALTER TABLE retencao_atendimentos ADD COLUMN equipamentos TEXT', () => {});
+    sqliteDb.run('ALTER TABLE retencao_atendimentos ADD COLUMN resultado_tratativa TEXT', () => {});
+    sqliteDb.run('ALTER TABLE retencao_atendimentos ADD COLUMN historico TEXT', () => {});
+    sqliteDb.run('ALTER TABLE retencao_atendimentos ADD COLUMN origem_arquivo TEXT', () => {});
+    sqliteDb.run('ALTER TABLE retencao_atendimentos ADD COLUMN assinatura TEXT', () => {});
     sqliteDb.run("ALTER TABLE regras_comissao ADD COLUMN periodo TEXT DEFAULT 'Dez/25'", () => {});
     sqliteDb.run('ALTER TABLE regras_comissao ADD COLUMN meta1PercentIndividual REAL DEFAULT 0', () => {});
     sqliteDb.run('ALTER TABLE regras_comissao ADD COLUMN meta2PercentIndividual REAL DEFAULT 0', () => {});
     sqliteDb.run('ALTER TABLE regras_comissao ADD COLUMN meta3PercentIndividual REAL DEFAULT 0', () => {});
     sqliteDb.run('CREATE INDEX IF NOT EXISTS idx_usuarios_email ON usuarios(email)');
     sqliteDb.run('CREATE INDEX IF NOT EXISTS idx_colaboradores_regional ON colaboradores(regional_id)');
+    sqliteDb.run('CREATE UNIQUE INDEX IF NOT EXISTS uq_colaboradores_nome_regional_ci ON colaboradores(regional_id, LOWER(TRIM(nome)))');
+    sqliteDb.run('CREATE INDEX IF NOT EXISTS idx_regional_cidades_cidade ON regional_cidades(cidade)');
+    sqliteDb.run('CREATE INDEX IF NOT EXISTS idx_regional_cidades_regional ON regional_cidades(regional_id)');
     sqliteDb.run('CREATE INDEX IF NOT EXISTS idx_colaboradores_funcao ON colaboradores(funcao_id)');
     sqliteDb.run('CREATE INDEX IF NOT EXISTS idx_regras_regional_periodo ON regras_comissao(regionalId, periodo)');
     sqliteDb.run('CREATE INDEX IF NOT EXISTS idx_regras_tipometa ON regras_comissao(tipoMeta)');
+    sqliteDb.run('CREATE UNIQUE INDEX IF NOT EXISTS uq_regras_periodo_regional_tipometa_ci ON regras_comissao(periodo, regionalId, LOWER(TRIM(tipoMeta)))');
     sqliteDb.run('CREATE INDEX IF NOT EXISTS idx_vendas_mensais_periodo ON vendas_mensais(periodo)');
     sqliteDb.run('CREATE INDEX IF NOT EXISTS idx_vendas_mensais_regional ON vendas_mensais(regional_id)');
     sqliteDb.run('CREATE INDEX IF NOT EXISTS idx_vendas_mensais_vendedor ON vendas_mensais(vendedor_id)');
+    sqliteDb.run('CREATE UNIQUE INDEX IF NOT EXISTS uq_vendas_mensais_periodo_vendedor_regional ON vendas_mensais(periodo, vendedor_id, regional_id)');
+    sqliteDb.run('CREATE INDEX IF NOT EXISTS idx_vendas_mensais_vendedor_regional_periodo ON vendas_mensais(vendedor_id, regional_id, periodo)');
     sqliteDb.run('CREATE INDEX IF NOT EXISTS idx_churn_periodo_regional ON churn_regionais(periodo, regional_id)');
+    sqliteDb.run('CREATE INDEX IF NOT EXISTS idx_lideranca_periodo ON comissao_lideranca_regras(periodo)');
+    sqliteDb.run('CREATE INDEX IF NOT EXISTS idx_retencao_periodo ON retencao_atendimentos(periodo)');
+    sqliteDb.run('CREATE INDEX IF NOT EXISTS idx_retencao_tipo ON retencao_atendimentos(tipo_registro)');
+    sqliteDb.run('CREATE INDEX IF NOT EXISTS idx_retencao_filial ON retencao_atendimentos(filial)');
+    sqliteDb.run('CREATE INDEX IF NOT EXISTS idx_retencao_assinatura ON retencao_atendimentos(assinatura)');
+    sqliteDb.run('CREATE INDEX IF NOT EXISTS idx_retencao_tipo_periodo_data ON retencao_atendimentos(tipo_registro, periodo, data_atendimento DESC)');
+    sqliteDb.run('CREATE INDEX IF NOT EXISTS idx_retencao_periodo_data ON retencao_atendimentos(periodo, data_atendimento DESC)');
+    sqliteDb.run('CREATE INDEX IF NOT EXISTS idx_retencao_tipo_periodo_filial_data_criacao ON retencao_atendimentos(tipo_registro, periodo, filial, data_atendimento DESC, dataCriacao DESC)');
+    sqliteDb.run('CREATE INDEX IF NOT EXISTS idx_contratos_periodo ON contratos_base(periodo_referencia)');
+    sqliteDb.run('CREATE INDEX IF NOT EXISTS idx_contratos_filial ON contratos_base(filial)');
+    sqliteDb.run('CREATE INDEX IF NOT EXISTS idx_contratos_status ON contratos_base(status)');
+    sqliteDb.run('CREATE INDEX IF NOT EXISTS idx_contratos_base ON contratos_base(base)');
+    sqliteDb.run('CREATE INDEX IF NOT EXISTS idx_contratos_segmento ON contratos_base(tipo_assinante)');
+    sqliteDb.run('CREATE INDEX IF NOT EXISTS idx_contratos_periodo_segmento ON contratos_base(periodo_referencia, tipo_assinante)');
+    sqliteDb.run('CREATE INDEX IF NOT EXISTS idx_contratos_chave_negocio ON contratos_base(chave_negocio)');
+    sqliteDb.run('CREATE INDEX IF NOT EXISTS idx_vendas_mensais_periodo_regional_data ON vendas_mensais(periodo, regional_id, dataCriacao DESC)');
+    sqliteDb.run('CREATE INDEX IF NOT EXISTS idx_vendas_mensais_periodo_vendedor_data ON vendas_mensais(periodo, vendedor_id, dataCriacao DESC)');
+    sqliteDb.run('CREATE INDEX IF NOT EXISTS idx_marketing_lancamentos_ano ON marketing_lancamentos(ano_referencia)');
+    sqliteDb.run('CREATE INDEX IF NOT EXISTS idx_marketing_lancamentos_ano_mes ON marketing_lancamentos(ano_referencia, mes_referencia)');
+    sqliteDb.run('CREATE INDEX IF NOT EXISTS idx_marketing_lancamentos_regional ON marketing_lancamentos(regional)');
+    sqliteDb.run('CREATE INDEX IF NOT EXISTS idx_marketing_lancamentos_tipo_custo ON marketing_lancamentos(tipo_custo)');
+    sqliteDb.run('CREATE INDEX IF NOT EXISTS idx_marketing_lancamentos_tipo_status ON marketing_lancamentos(tipo_lancamento, status)');
+    sqliteDb.run('CREATE INDEX IF NOT EXISTS idx_marketing_orcamentos_ano ON marketing_orcamentos(ano_referencia)');
+    sqliteDb.run('CREATE INDEX IF NOT EXISTS idx_marketing_orcamentos_ano_mes ON marketing_orcamentos(ano_referencia, mes_referencia)');
+    sqliteDb.run('CREATE INDEX IF NOT EXISTS idx_marketing_orcamentos_categoria ON marketing_orcamentos(categoria)');
+    sqliteDb.run('CREATE UNIQUE INDEX IF NOT EXISTS uq_marketing_orcamentos_ano_mes_categoria ON marketing_orcamentos(ano_referencia, mes_referencia, LOWER(TRIM(categoria)))');
 
     sqliteDb.get('SELECT COUNT(*) as total FROM tipos_meta', (err, row) => {
       if (err || !row || row.total !== 0) return;
@@ -392,7 +769,7 @@ function createSqliteSchema() {
       });
     });
 
-    console.log('Conectado ao SQLite');
+    console.log(`Conectado ao SQLite em: ${dbPath}`);
     console.log('Tabelas criadas/verificadas');
   });
 }
@@ -410,6 +787,7 @@ async function inicializarBD() {
       console.error('Erro ao conectar ao banco de dados:', err);
       process.exit(1);
     }
+    sqliteDb.configure('busyTimeout', 10000);
     createSqliteSchema();
   });
 }

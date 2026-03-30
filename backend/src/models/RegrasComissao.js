@@ -8,25 +8,22 @@ class RegrasComissao {
 
       await db_run(
         `INSERT INTO regras_comissao (
-          id, regionalId, tipoMeta, periodo, meta1Volume, meta1Percent, meta1Incremento,
-          meta2Volume, meta2Percent, meta2Incremento, meta3Volume, meta3Percent, meta3Incremento,
+          id, regionalId, tipoMeta, periodo, meta1Volume, meta1Percent,
+          meta2Volume, meta2Percent, meta3Volume, meta3Percent,
           meta1PercentIndividual, meta2PercentIndividual, meta3PercentIndividual,
           incrementoGlobal, pesoVendasChurn
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           id,
           dados.regionalId,
           dados.tipoMeta,
-          dados.periodo || 'Dez/25',
+          dados.periodo,
           dados.meta1Volume,
           dados.meta1Percent,
-          dados.meta1Incremento || 0,
           dados.meta2Volume,
           dados.meta2Percent,
-          dados.meta2Incremento || 0,
           dados.meta3Volume,
           dados.meta3Percent,
-          dados.meta3Incremento || 0,
           dados.meta1PercentIndividual || 0,
           dados.meta2PercentIndividual || 0,
           dados.meta3PercentIndividual || 0,
@@ -85,25 +82,22 @@ class RegrasComissao {
     try {
       const result = await db_run(
         `UPDATE regras_comissao SET 
-          tipoMeta = ?, periodo = ?, meta1Volume = ?, meta1Percent = ?, meta1Incremento = ?,
-          meta2Volume = ?, meta2Percent = ?, meta2Incremento = ?,
-          meta3Volume = ?, meta3Percent = ?, meta3Incremento = ?,
+          tipoMeta = ?, periodo = ?, meta1Volume = ?, meta1Percent = ?,
+          meta2Volume = ?, meta2Percent = ?,
+          meta3Volume = ?, meta3Percent = ?,
           meta1PercentIndividual = ?, meta2PercentIndividual = ?, meta3PercentIndividual = ?,
           incrementoGlobal = ?, pesoVendasChurn = ?,
           dataAtualizacao = CURRENT_TIMESTAMP
          WHERE id = ?`,
         [
           dados.tipoMeta,
-          dados.periodo || 'Dez/25',
+          dados.periodo,
           dados.meta1Volume,
           dados.meta1Percent,
-          dados.meta1Incremento || 0,
           dados.meta2Volume,
           dados.meta2Percent,
-          dados.meta2Incremento || 0,
           dados.meta3Volume,
           dados.meta3Percent,
-          dados.meta3Incremento || 0,
           dados.meta1PercentIndividual || 0,
           dados.meta2PercentIndividual || 0,
           dados.meta3PercentIndividual || 0,

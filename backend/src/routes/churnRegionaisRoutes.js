@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { autenticar, apenasGestorOuSuperior } = require('../middleware/auth');
+const { autenticar } = require('../middleware/auth');
 const churnRegionaisController = require('../controllers/churnRegionaisController');
 
 router.use(autenticar);
@@ -13,11 +13,12 @@ router.get('/:id', churnRegionaisController.buscar);
 
 // POST /api/churn-regionais
 router.post('/', churnRegionaisController.criarOuAtualizar);
+router.post('/lote', churnRegionaisController.importarLote);
 
 // PUT /api/churn-regionais/:id
 router.put('/:id', churnRegionaisController.atualizar);
 
 // DELETE /api/churn-regionais/:id
-router.delete('/:id', apenasGestorOuSuperior, churnRegionaisController.deletar);
+router.delete('/:id', churnRegionaisController.deletar);
 
 module.exports = router;

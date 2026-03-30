@@ -1,6 +1,23 @@
 const { db_run, db_get, db_all } = require('../config/database');
 const { v4: uuidv4 } = require('uuid');
 
+const COLUNAS_EVENTO_PERMITIDAS = new Set([
+  'vendas_volume',
+  'vendas_financeiro',
+  'mudanca_titularidade_volume',
+  'mudanca_titularidade_financeiro',
+  'migracao_tecnologia_volume',
+  'migracao_tecnologia_financeiro',
+  'renovacao_volume',
+  'renovacao_financeiro',
+  'plano_evento_volume',
+  'plano_evento_financeiro',
+  'sva_volume',
+  'sva_financeiro',
+  'telefonia_volume',
+  'telefonia_financeiro'
+]);
+
 class VendasMensais {
   static async listar() {
     return db_all('SELECT * FROM vendas_mensais ORDER BY periodo DESC, dataCriacao DESC');
@@ -134,6 +151,29 @@ class VendasMensais {
 
   static async deletar(id) {
     const result = await db_run('DELETE FROM vendas_mensais WHERE id = ?', [id]);
+    return result.changes;
+  }
+
+  static async deletarPorPeriodo(periodo) {
+    const result = await db_run('DELETE FROM vendas_mensais WHERE periodo = ?', [periodo]);
+    return result.changes;
+  }
+
+  static async zerarCamposPorPeriodo(periodo, colunas = []) {
+    const colunasValidas = Array.isArray(colunas)
+      ? colunas.filter((coluna) => COLUNAS_EVENTO_PERMITIDAS.has(coluna))
+      : [];
+
+    if (!periodo || !colunasValidas.length) return 0;
+
+    const setClause = colunasValidas.map((coluna) => `${coluna} = 0`).join(', ');
+    const result = await db_run(
+      `UPDATE vendas_mensais
+       SET ${setClause},
+           dataAtualizacao = CURRENT_TIMESTAMP
+       WHERE periodo = ?`,
+      [periodo]
+    );
     return result.changes;
   }
 }

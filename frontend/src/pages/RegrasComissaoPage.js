@@ -20,6 +20,7 @@ export default function RegrasComissaoPage() {
   const [formAberto, setFormAberto] = useState(false);
   const [modoLote, setModoLote] = useState(false);
   const [textoLote, setTextoLote] = useState('');
+  const [periodosDetectadosLote, setPeriodosDetectadosLote] = useState([]);
   const [arquivoSelecionado, setArquivoSelecionado] = useState(null);
   const [editandoId, setEditandoId] = useState(null);
   const [sortField, setSortField] = useState('dataCriacao');
@@ -40,10 +41,131 @@ export default function RegrasComissaoPage() {
     incrementoGlobal: 0,
     pesoVendasChurn: 0.5
   });
+  const [parametrosLideranca, setParametrosLideranca] = useState({
+    periodo: '',
+    gerenteRegionalMultiplier: 1.2,
+    supervisorRegionalMultiplier: 1.0,
+    gerenteMatrizMultiplier: 2.4
+  });
+  const [periodosConhecidos, setPeriodosConhecidos] = useState([]);
+  const [salvandoLideranca, setSalvandoLideranca] = useState(false);
 
   useEffect(() => {
     carregarDados();
   }, []);
+
+  useEffect(() => {
+    const periodo = (parametrosLideranca.periodo || '').trim();
+    if (!periodo) return;
+    carregarRegraLideranca(periodo);
+  }, [parametrosLideranca.periodo]);
+
+  const splitLinhaLote = (linha) => {
+    if (!linha) return [];
+    if (linha.includes('|')) return linha.split('|').map((p) => p.trim());
+    if (linha.includes('\t')) return linha.split('\t').map((p) => p.trim());
+    if (/\s{2,}/.test(linha)) return linha.split(/\s{2,}/).map((p) => p.trim());
+    return linha.split(';').map((p) => p.trim());
+  };
+
+  const excelToPeriodoUTC = (excelDate) => {
+    const epochUTC = Date.UTC(1899, 11, 30);
+    const date = new Date(epochUTC + Number(excelDate) * 24 * 60 * 60 * 1000);
+    const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    return `${meses[date.getUTCMonth()]}/${String(date.getUTCFullYear()).slice(-2)}`;
+  };
+
+  const parsePeriodoLote = (valor) => {
+    const valorStr = String(valor || '').trim();
+    if (!valorStr) return '';
+
+    const meses = {
+      jan: 'Jan', janeiro: 'Jan',
+      fev: 'Fev', fevereiro: 'Fev',
+      mar: 'Mar', marco: 'Mar', março: 'Mar',
+      abr: 'Abr', abril: 'Abr',
+      mai: 'Mai', maio: 'Mai',
+      jun: 'Jun', junho: 'Jun',
+      jul: 'Jul', julho: 'Jul',
+      ago: 'Ago', agosto: 'Ago',
+      set: 'Set', setembro: 'Set',
+      out: 'Out', outubro: 'Out',
+      nov: 'Nov', novembro: 'Nov',
+      dez: 'Dez', dezembro: 'Dez'
+    };
+
+    const normalizarMes = (txt) =>
+      String(txt || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim();
+
+    const valorNum = parseFloat(valorStr);
+    if (!Number.isNaN(valorNum) && valorNum > 0 && valorNum < 70000 && !valorStr.includes('/') && !valorStr.includes(',') && !valorStr.includes('.')) {
+      return excelToPeriodoUTC(valorNum);
+    }
+
+    const ddmmyyyy = valorStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+    if (ddmmyyyy) {
+      const mesNum = Number(ddmmyyyy[2]);
+      const anoNum = Number(ddmmyyyy[3]);
+      if (mesNum >= 1 && mesNum <= 12) {
+        const lista = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+        return `${lista[mesNum - 1]}/${String(anoNum).slice(-2)}`;
+      }
+    }
+
+    const mmyyyy = valorStr.match(/^(\d{1,2})\/(\d{2,4})$/);
+    if (mmyyyy) {
+      const mesNum = Number(mmyyyy[1]);
+      const anoNum = Number(mmyyyy[2]);
+      if (mesNum >= 1 && mesNum <= 12) {
+        const lista = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+        return `${lista[mesNum - 1]}/${String(anoNum).slice(-2)}`;
+      }
+    }
+
+    const yyyymm = valorStr.match(/^(\d{4})-(\d{1,2})$/);
+    if (yyyymm) {
+      const anoNum = Number(yyyymm[1]);
+      const mesNum = Number(yyyymm[2]);
+      if (mesNum >= 1 && mesNum <= 12) {
+        const lista = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+        return `${lista[mesNum - 1]}/${String(anoNum).slice(-2)}`;
+      }
+    }
+
+    const mesAno = valorStr.match(/^([A-Za-zÀ-ÿ]{3,12})\/(\d{2,4})$/);
+    if (mesAno) {
+      const mes = meses[normalizarMes(mesAno[1])];
+      if (mes) return `${mes}/${String(mesAno[2]).slice(-2)}`;
+    }
+
+    return '';
+  };
+
+  const atualizarPeriodosDetectados = (texto) => {
+    const linhas = String(texto || '').split('\n').filter((l) => l.trim());
+    const detectados = new Set();
+    linhas.forEach((linha) => {
+      const partes = splitLinhaLote(linha);
+      if (!partes.length) return;
+      const p1 = parsePeriodoLote(partes[1]);
+      const p2 = parsePeriodoLote(partes[2]);
+      if (p1) detectados.add(p1);
+      if (p2) detectados.add(p2);
+    });
+    const lista = Array.from(detectados).sort((a, b) => {
+      const [ma, aa] = a.split('/');
+      const [mb, ab] = b.split('/');
+      const mapa = { Jan: 0, Fev: 1, Mar: 2, Abr: 3, Mai: 4, Jun: 5, Jul: 6, Ago: 7, Set: 8, Out: 9, Nov: 10, Dez: 11 };
+      const va = Number(`20${aa}`) * 100 + (mapa[ma] ?? 0);
+      const vb = Number(`20${ab}`) * 100 + (mapa[mb] ?? 0);
+      return va - vb;
+    });
+    setPeriodosDetectadosLote(lista);
+  };
 
   const carregarDados = async () => {
     try {
@@ -55,6 +177,14 @@ export default function RegrasComissaoPage() {
         tiposMetaAPI.listar()
       ]);
       setRegras(regrasResp.data.regras || []);
+      const periodos = Array.from(
+        new Set((regrasResp.data.regras || []).map((r) => String(r.periodo || '').trim()).filter(Boolean))
+      ).sort();
+      setPeriodosConhecidos(periodos);
+      setParametrosLideranca((atual) => ({
+        ...atual,
+        periodo: atual.periodo || periodos[periodos.length - 1] || 'Dez/25'
+      }));
       setRegionais(regionaisResp.data.regionais || []);
       setTiposMeta(tiposMetaResp.data?.tiposMeta || []);
 
@@ -107,27 +237,109 @@ export default function RegrasComissaoPage() {
   };
 
   const handleCriarLote = async () => {
+    const normalizarTexto = (valor) => String(valor || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-zA-Z0-9]/g, '')
+      .toLowerCase()
+      .trim();
+
+    const splitLinha = (linha) => {
+      if (!linha) return [];
+      if (linha.includes('|')) return linha.split('|').map((p) => p.trim());
+      if (linha.includes('\t')) return linha.split('\t').map((p) => p.trim());
+      if (/\s{2,}/.test(linha)) return linha.split(/\s{2,}/).map((p) => p.trim());
+      return linha.split(';').map((p) => p.trim());
+    };
+
+    const ehCabecalho = (partes) => {
+      const c0 = normalizarTexto(partes[0]);
+      const c1 = normalizarTexto(partes[1]);
+      const c2 = normalizarTexto(partes[2]);
+      return c0 === 'regional' && (c1 === 'periodo' || c1 === 'tipometa') && (c2 === 'tipometa' || c2 === 'periodo');
+    };
+
     const excelToDate = (excelDate) => {
-      const epoch = new Date(1899, 11, 30);
-      const date = new Date(epoch.getTime() + excelDate * 24 * 60 * 60 * 1000);
+      const epochUTC = Date.UTC(1899, 11, 30);
+      const date = new Date(epochUTC + Number(excelDate) * 24 * 60 * 60 * 1000);
       const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-      const mes = meses[date.getMonth()];
-      const ano = String(date.getFullYear()).slice(-2);
-      return `${mes}/${ano}`;
+      const mes = meses[date.getUTCMonth()];
+      const ano = String(date.getUTCFullYear()).slice(-2);
+      return mes + '/' + ano;
     };
 
     const parsePeriodo = (valor) => {
-      if (!valor) return 'Dez/25';
-      const valorStr = String(valor).trim();
+      const valorStr = String(valor || '').trim();
+      if (!valorStr) return '';
+
+      const meses = {
+        jan: 'Jan', janeiro: 'Jan',
+        fev: 'Fev', fevereiro: 'Fev',
+        mar: 'Mar', marco: 'Mar', março: 'Mar',
+        abr: 'Abr', abril: 'Abr',
+        mai: 'Mai', maio: 'Mai',
+        jun: 'Jun', junho: 'Jun',
+        jul: 'Jul', julho: 'Jul',
+        ago: 'Ago', agosto: 'Ago',
+        set: 'Set', setembro: 'Set',
+        out: 'Out', outubro: 'Out',
+        nov: 'Nov', novembro: 'Nov',
+        dez: 'Dez', dezembro: 'Dez'
+      };
+
+      const normalizarMes = (txt) =>
+        String(txt || '')
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .trim();
+
       const valorNum = parseFloat(valorStr);
-      if (!isNaN(valorNum) && valorNum > 0 && valorNum < 70000 && !valorStr.includes('/') && !valorStr.includes(',') && !valorStr.includes('.') ) {
+      if (!isNaN(valorNum) && valorNum > 0 && valorNum < 70000 && !valorStr.includes('/') && !valorStr.includes(',') && !valorStr.includes('.')) {
         try {
           return excelToDate(valorNum);
-        } catch (e) {
-          return valorStr;
+        } catch {
+          return '';
         }
       }
-      return valorStr;
+
+      const ddmmyyyy = valorStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+      if (ddmmyyyy) {
+        const mesNum = Number(ddmmyyyy[2]);
+        const anoNum = Number(ddmmyyyy[3]);
+        if (mesNum >= 1 && mesNum <= 12) {
+          const lista = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+          return `${lista[mesNum - 1]}/${String(anoNum).slice(-2)}`;
+        }
+      }
+
+      const mmyyyy = valorStr.match(/^(\d{1,2})\/(\d{2,4})$/);
+      if (mmyyyy) {
+        const mesNum = Number(mmyyyy[1]);
+        const anoNum = Number(mmyyyy[2]);
+        if (mesNum >= 1 && mesNum <= 12) {
+          const lista = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+          return `${lista[mesNum - 1]}/${String(anoNum).slice(-2)}`;
+        }
+      }
+
+      const yyyymm = valorStr.match(/^(\d{4})-(\d{1,2})$/);
+      if (yyyymm) {
+        const anoNum = Number(yyyymm[1]);
+        const mesNum = Number(yyyymm[2]);
+        if (mesNum >= 1 && mesNum <= 12) {
+          const lista = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+          return `${lista[mesNum - 1]}/${String(anoNum).slice(-2)}`;
+        }
+      }
+
+      const mesAno = valorStr.match(/^([A-Za-zÀ-ÿ]{3,12})\/(\d{2,4})$/);
+      if (mesAno) {
+        const mes = meses[normalizarMes(mesAno[1])];
+        if (mes) return `${mes}/${String(mesAno[2]).slice(-2)}`;
+      }
+
+      return '';
     };
 
     const parseNumero = (valor) => {
@@ -141,120 +353,116 @@ export default function RegrasComissaoPage() {
       return parseFloat(valorNormalizado) || 0;
     };
 
-    const parseFormatoCompacto = (partes) => {
-      // Formato: Regional | Período | TipoMeta | (Vol1 (Perc1%)) | (Vol2 (Perc2%)) | (Vol3 (Perc3%)) | [PercInd1%] | [PercInd2%] | [PercInd3%]
-      const regex = /(\d+(?:[,\.]\d+)?)\s*\(\s*(\d+(?:[,\.]\d+)?%?)\s*\)/;
-      
-      let metaData = {
-        meta1Volume: 0,
-        meta1Percent: 0,
-        meta2Volume: 0,
-        meta2Percent: 0,
-        meta3Volume: 0,
-        meta3Percent: 0,
-        meta1PercentIndividual: 0,
-        meta2PercentIndividual: 0,
-        meta3PercentIndividual: 0,
-        incrementoGlobal: 0,
-        pesoVendasChurn: 0.5
-      };
-
-      // Tenta fazer match dos padrões (volume (percentual))
-      for (let i = 3; i < partes.length && i < 6; i++) {
-        const match = partes[i].match(regex);
-        if (match) {
-          const metaIndex = i - 3; // 0, 1, 2 para meta1, meta2, meta3
-          const volKey = `meta${metaIndex + 1}Volume`;
-          const percKey = `meta${metaIndex + 1}Percent`;
-          
-          metaData[volKey] = parseNumero(match[1]);
-          metaData[percKey] = parseNumero(match[2]);
-        }
-      }
-
-      // Percentuais individuais opcionais (campos 6, 7, 8)
-      if (partes.length > 6) metaData.meta1PercentIndividual = parseNumero(partes[6]);
-      if (partes.length > 7) metaData.meta2PercentIndividual = parseNumero(partes[7]);
-      if (partes.length > 8) metaData.meta3PercentIndividual = parseNumero(partes[8]);
-
-      return metaData;
+    const parecePeriodo = (valor) => {
+      const texto = String(valor || '').trim();
+      if (!texto) return false;
+      if (/^[A-Za-z]{3,12}\/\d{2,4}$/i.test(texto)) return true;
+      if (/^\d{1,2}\/\d{2,4}$/.test(texto)) return true;
+      if (/^\d{4}-\d{1,2}$/.test(texto)) return true;
+      return false;
     };
 
-    const linhas = textoLote.split('\n').filter(l => l.trim());
+    const linhas = textoLote.split('\n').filter((l) => l.trim());
     let sucesso = 0;
     let falhas = 0;
 
     for (const linha of linhas) {
-      const partes = linha.split('|').map(p => p.trim());
-      
-      if (partes.length < 3) {
+      const partes = splitLinha(linha);
+      if (!partes.length || ehCabecalho(partes)) continue;
+
+      if (partes.length < 9) {
         falhas++;
-        console.error('Linha inválida (mínimo 3 campos):', linha);
         continue;
       }
 
       const nomeRegional = partes[0];
-      const regional = regionais.find(r => r.nome.toLowerCase() === nomeRegional.toLowerCase());
-
+      const regional = regionais.find((r) => normalizarTexto(r.nome) === normalizarTexto(nomeRegional));
       if (!regional) {
         falhas++;
-        console.error('Regional não encontrada:', nomeRegional);
         continue;
       }
 
-      try {
-        let dados;
-        
-        // Detecta se é formato compacto ou formato original
-        if (partes.length >= 6 && partes[3].includes('(')) {
-          // Formato compacto: Regional | Período | TipoMeta | (Vol1 (Perc1%)) | (Vol2 (Perc2%)) | (Vol3 (Perc3%))
-          const metaData = parseFormatoCompacto(partes);
-          dados = {
-            regionalId: regional.id,
-            tipoMeta: partes[2],
-            periodo: parsePeriodo(partes[1]),
-            ...metaData
-          };
-        } else {
-          // Formato original: Regional | TipoMeta | Período | Meta1Vol | Meta1% | Meta2Vol | Meta2% | Meta3Vol | Meta3% | Meta1%Ind | Meta2%Ind | Meta3%Ind | IncrGlobal | PesoChurn
-          if (partes.length < 9) {
-            falhas++;
-            console.error('Linha inválida (mínimo 9 campos para formato original):', linha);
-            continue;
-          }
-          dados = {
-            regionalId: regional.id,
-            tipoMeta: partes[1],
-            periodo: parsePeriodo(partes[2]),
-            meta1Volume: parseNumero(partes[3]),
-            meta1Percent: parseNumero(partes[4]),
-            meta2Volume: parseNumero(partes[5]),
-            meta2Percent: parseNumero(partes[6]),
-            meta3Volume: parseNumero(partes[7]),
-            meta3Percent: parseNumero(partes[8]),
-            meta1PercentIndividual: parseNumero(partes[9]),
-            meta2PercentIndividual: parseNumero(partes[10]),
-            meta3PercentIndividual: parseNumero(partes[11]),
-            incrementoGlobal: parseNumero(partes[12]) || 0,
-            pesoVendasChurn: parseNumero(partes[13]) || 0.5
-          };
-        }
+      const formatoRegionalPeriodoTipo = parecePeriodo(partes[1]) && !parecePeriodo(partes[2]);
+      const tipoMeta = formatoRegionalPeriodoTipo ? partes[2] : partes[1];
+      const periodo = parsePeriodo(formatoRegionalPeriodoTipo ? partes[1] : partes[2]);
 
+      if (!periodo) {
+        falhas++;
+        continue;
+      }
+
+      const dados = {
+        regionalId: regional.id,
+        tipoMeta,
+        periodo,
+        meta1Volume: parseNumero(partes[3]),
+        meta1Percent: parseNumero(partes[4]),
+        meta2Volume: parseNumero(partes[5]),
+        meta2Percent: parseNumero(partes[6]),
+        meta3Volume: parseNumero(partes[7]),
+        meta3Percent: parseNumero(partes[8]),
+        meta1PercentIndividual: parseNumero(partes[9]),
+        meta2PercentIndividual: parseNumero(partes[10]),
+        meta3PercentIndividual: parseNumero(partes[11]),
+        incrementoGlobal: parseNumero(partes[12]) || 0,
+        pesoVendasChurn: parseNumero(partes[13]) || 0.5
+      };
+
+      try {
         await regrasComissaoAPI.criar(dados);
         sucesso++;
-      } catch (error) {
+      } catch {
         falhas++;
-        console.error('Erro ao criar regra:', error);
       }
     }
 
-    alert(`✅ ${sucesso} regras criadas\n❌ ${falhas} falhas`);
+    alert('Importacao finalizada: ' + sucesso + ' sucesso(s), ' + falhas + ' falha(s).');
     setTextoLote('');
+    setPeriodosDetectadosLote([]);
     setArquivoSelecionado(null);
     setModoLote(false);
     carregarDados();
   };
 
+  const carregarRegraLideranca = async (periodo) => {
+    try {
+      const resp = await regrasComissaoAPI.obterRegraLideranca(periodo);
+      const regra = resp.data?.regra || {};
+      setParametrosLideranca((atual) => ({
+        ...atual,
+        periodo,
+        gerenteRegionalMultiplier: regra.gerenteRegionalMultiplier ?? 1.2,
+        supervisorRegionalMultiplier: regra.supervisorRegionalMultiplier ?? 1.0,
+        gerenteMatrizMultiplier: regra.gerenteMatrizMultiplier ?? 2.4
+      }));
+    } catch (error) {
+      console.error('Erro ao carregar parametros de lideranca:', error);
+    }
+  };
+
+  const handleSalvarParametrosLideranca = async () => {
+    const periodo = String(parametrosLideranca.periodo || '').trim();
+    if (!periodo) {
+      setErro('Informe o periodo para os parametros de lideranca');
+      return;
+    }
+
+    try {
+      setSalvandoLideranca(true);
+      await regrasComissaoAPI.salvarRegraLideranca({
+        periodo,
+        gerenteRegionalMultiplier: Number(parametrosLideranca.gerenteRegionalMultiplier),
+        supervisorRegionalMultiplier: Number(parametrosLideranca.supervisorRegionalMultiplier),
+        gerenteMatrizMultiplier: Number(parametrosLideranca.gerenteMatrizMultiplier)
+      });
+      alert('Parametros de comissao da lideranca salvos com sucesso.');
+      setErro('');
+    } catch (error) {
+      setErro(error.response?.data?.erro || 'Erro ao salvar parametros de lideranca');
+    } finally {
+      setSalvandoLideranca(false);
+    }
+  };
   const handleArquivoSelecionado = async (e) => {
     const arquivo = e.target.files[0];
     if (!arquivo) return;
@@ -281,6 +489,7 @@ export default function RegrasComissaoPage() {
               .join('\n');
             
             setTextoLote(linhasTexto);
+            atualizarPeriodosDetectados(linhasTexto);
           } catch (error) {
             alert('❌ Erro ao processar arquivo Excel: ' + error.message);
           }
@@ -299,6 +508,7 @@ export default function RegrasComissaoPage() {
                 .join('\n');
             }
             setTextoLote(texto);
+            atualizarPeriodosDetectados(texto);
           } catch (error) {
             alert('❌ Erro ao processar arquivo: ' + error.message);
           }
@@ -307,10 +517,12 @@ export default function RegrasComissaoPage() {
       } else {
         alert('❌ Formato de arquivo não suportado. Use .xlsx, .csv ou .txt');
         setArquivoSelecionado(null);
+        setPeriodosDetectadosLote([]);
       }
     } catch (error) {
       alert('❌ Erro ao ler arquivo: ' + error.message);
       setArquivoSelecionado(null);
+      setPeriodosDetectadosLote([]);
     }
   };
 
@@ -530,6 +742,72 @@ export default function RegrasComissaoPage() {
 
         {isAdmin && (
           <div className="glass-card">
+            <div style={{ marginBottom: '20px', padding: '16px', border: '1px solid #e5e7eb', borderRadius: '12px', background: '#fafafa' }}>
+              <h3 style={{ marginBottom: '10px' }}>Parametros de Comissao para Lideranca</h3>
+              <p style={{ fontSize: '12px', color: '#666', marginBottom: '12px' }}>
+                Configure por periodo os multiplicadores usados no calculo da lideranca.
+              </p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '10px', alignItems: 'end' }}>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Periodo</label>
+                  <input
+                    list="periodos-lideranca"
+                    type="text"
+                    className="form-control"
+                    placeholder="Ex: Jan/26"
+                    value={parametrosLideranca.periodo}
+                    onChange={(e) => setParametrosLideranca({ ...parametrosLideranca, periodo: e.target.value })}
+                  />
+                  <datalist id="periodos-lideranca">
+                    {periodosConhecidos.map((p) => (
+                      <option key={p} value={p} />
+                    ))}
+                  </datalist>
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Gerente Regional (x)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    className="form-control"
+                    value={parametrosLideranca.gerenteRegionalMultiplier}
+                    onChange={(e) => setParametrosLideranca({ ...parametrosLideranca, gerenteRegionalMultiplier: e.target.value })}
+                  />
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Supervisor Comercial (x)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    className="form-control"
+                    value={parametrosLideranca.supervisorRegionalMultiplier}
+                    onChange={(e) => setParametrosLideranca({ ...parametrosLideranca, supervisorRegionalMultiplier: e.target.value })}
+                  />
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Gerente da Matriz (x)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    className="form-control"
+                    value={parametrosLideranca.gerenteMatrizMultiplier}
+                    onChange={(e) => setParametrosLideranca({ ...parametrosLideranca, gerenteMatrizMultiplier: e.target.value })}
+                  />
+                </div>
+              </div>
+              <button
+                className="btn btn-success btn-small"
+                onClick={handleSalvarParametrosLideranca}
+                disabled={salvandoLideranca}
+                style={{ marginTop: '12px' }}
+              >
+                {salvandoLideranca ? 'Salvando...' : 'Salvar parametros de lideranca'}
+              </button>
+            </div>
+
             <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
               <button
                 className="btn btn-primary"
@@ -565,6 +843,7 @@ export default function RegrasComissaoPage() {
                   setModoLote(!modoLote);
                   setFormAberto(false);
                   setEditandoId(null);
+                  if (!modoLote) setPeriodosDetectadosLote([]);
                 }}
               >
                 📋 Adicionar em Lote
@@ -612,10 +891,18 @@ export default function RegrasComissaoPage() {
                   className="form-control"
                   rows="10"
                   value={textoLote}
-                  onChange={(e) => setTextoLote(e.target.value)}
+                  onChange={(e) => {
+                    const texto = e.target.value;
+                    setTextoLote(texto);
+                    atualizarPeriodosDetectados(texto);
+                  }}
                   placeholder="FORMATO COMPACTO:&#10;Regional | Período | TipoMeta | (Vol1 Perc1%) | (Vol2 Perc2%) | (Vol3 Perc3%)&#10;Alta Floresta | Nov/25 | SVA | 10 (100%) | 5 (80%) | 3 (50%)&#10;&#10;FORMATO CLÁSSICO:&#10;Regional | TipoMeta | Período | Meta1Vol | Meta1% | Meta2Vol | Meta2% | Meta3Vol | Meta3% | Meta1%Ind | Meta2%Ind | Meta3%Ind | IncrGlobal | PesoChurn&#10;JI-PARANA | Vendas | dez/25 | 400 | 0,15 | 320 | 0,06 | 256 | 0,03 | 0,08 | 0,03 | 0,02 | 0,4 | 0,5"
                   style={{ fontFamily: 'monospace', fontSize: '13px' }}
                 />
+                <div style={{ marginTop: '10px', fontSize: '13px' }}>
+                  <strong>PerÃ­odos detectados:</strong>{' '}
+                  {periodosDetectadosLote.length > 0 ? periodosDetectadosLote.join(', ') : 'nenhum'}
+                </div>
                 <button
                   className="btn btn-success btn-small"
                   onClick={handleCriarLote}

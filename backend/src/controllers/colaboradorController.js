@@ -2,8 +2,8 @@ const { v4: uuidv4 } = require('uuid');
 const Colaborador = require('../models/Colaborador');
 
 exports.criar = async (req, res) => {
+  const { nome, regional_id, funcao_id, status, data_ativacao, data_inativacao } = req.body || {};
   try {
-    const { nome, regional_id, funcao_id } = req.body;
 
     if (!nome || nome.trim() === '') {
       return res.status(400).json({ erro: 'Nome é obrigatório' });
@@ -21,7 +21,12 @@ exports.criar = async (req, res) => {
       id: uuidv4(),
       nome: nome.trim(),
       regional_id,
-      funcao_id
+      funcao_id,
+      status: status || 'ativo',
+      data_ativacao: (status || 'ativo') === 'ativo'
+        ? (data_ativacao || new Date().toISOString())
+        : (data_ativacao || null),
+      data_inativacao: status === 'inativo' ? (data_inativacao || new Date().toISOString()) : null
     };
 
     await Colaborador.criar(colaborador);
@@ -36,6 +41,26 @@ exports.criar = async (req, res) => {
       }
     });
   } catch (erro) {
+    const mensagemErro = String(erro?.message || '');
+    const duplicadoNomeRegional = /UNIQUE constraint failed/i.test(mensagemErro)
+      && (
+        mensagemErro.includes('uq_colaboradores_nome_regional_ci')
+        || mensagemErro.includes('colaboradores.regional_id')
+      );
+    if (duplicadoNomeRegional) {
+      const existente = await Colaborador.buscarPorNomeRegional(nome.trim(), regional_id);
+      if (existente?.id) {
+        return res.status(200).json({
+          mensagem: 'Colaborador ja existente na regional. Registro reaproveitado.',
+          colaborador: {
+            id: existente.id,
+            nome: existente.nome,
+            regional_id: existente.regional_id,
+            funcao_id: existente.funcao_id
+          }
+        });
+      }
+    }
     console.error('Erro ao criar colaborador:', erro);
     res.status(500).json({ erro: 'Erro ao criar colaborador: ' + erro.message });
   }
@@ -88,7 +113,7 @@ exports.listarPorRegional = async (req, res) => {
 exports.atualizar = async (req, res) => {
   try {
     const { id } = req.params;
-    const { nome, regional_id, funcao_id, status } = req.body;
+    const { nome, regional_id, funcao_id, status, data_ativacao, data_inativacao } = req.body;
 
     if (!nome || nome.trim() === '') {
       return res.status(400).json({ erro: 'Nome é obrigatório' });
@@ -106,7 +131,13 @@ exports.atualizar = async (req, res) => {
       nome: nome.trim(),
       regional_id,
       funcao_id,
-      status
+      status,
+      data_ativacao: status === 'ativo'
+        ? (data_ativacao || new Date().toISOString())
+        : (data_ativacao || null),
+      data_inativacao: status === 'inativo'
+        ? (data_inativacao || new Date().toISOString())
+        : null
     };
 
     const resultado = await Colaborador.atualizar(id, colaborador);
@@ -119,6 +150,38 @@ exports.atualizar = async (req, res) => {
   } catch (erro) {
     console.error('Erro ao atualizar colaborador:', erro);
     res.status(500).json({ erro: 'Erro ao atualizar colaborador: ' + erro.message });
+  }
+};
+
+exports.inativar = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const dataInativacao = req.body?.data_inativacao || new Date().toISOString();
+    const colaborador = await Colaborador.buscarPorId(id);
+    const dataAtivacaoAtual = colaborador?.data_ativacao || null;
+    const resultado = await Colaborador.atualizarStatus(id, 'inativo', dataInativacao, dataAtivacaoAtual);
+    if (resultado.changes === 0) {
+      return res.status(404).json({ erro: 'Colaborador não encontrado' });
+    }
+    res.json({ mensagem: 'Colaborador inativado com sucesso', data_inativacao: dataInativacao });
+  } catch (erro) {
+    console.error('Erro ao inativar colaborador:', erro);
+    res.status(500).json({ erro: 'Erro ao inativar colaborador: ' + erro.message });
+  }
+};
+
+exports.reativar = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const dataAtivacao = req.body?.data_ativacao || new Date().toISOString();
+    const resultado = await Colaborador.atualizarStatus(id, 'ativo', null, dataAtivacao);
+    if (resultado.changes === 0) {
+      return res.status(404).json({ erro: 'Colaborador não encontrado' });
+    }
+    res.json({ mensagem: 'Colaborador reativado com sucesso', data_ativacao: dataAtivacao });
+  } catch (erro) {
+    console.error('Erro ao reativar colaborador:', erro);
+    res.status(500).json({ erro: 'Erro ao reativar colaborador: ' + erro.message });
   }
 };
 

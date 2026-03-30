@@ -1,0 +1,262 @@
+.retencao-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.retencao-actions input[type='url'] {
+  flex: 1;
+  min-width: 320px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  background: #fff;
+}
+
+.retencao-filtros {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.retencao-filtros select {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  background: #fff;
+}
+
+.retencao-filtros input[type='date'] {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  background: #fff;
+}
+
+.retencao-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.retencao-interacoes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.retencao-interacoes-label {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.retencao-chip {
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #334155;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.retencao-chip.ativo {
+  border-color: #2563eb;
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.retencao-kpi-card {
+  border: 1px solid rgba(37, 99, 235, 0.16);
+  background: rgba(37, 99, 235, 0.05);
+  border-radius: 12px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.retencao-kpi-card span {
+  font-size: 12px;
+  color: #667085;
+}
+
+.retencao-kpi-card strong {
+  font-size: 22px;
+  color: #0f172a;
+}
+
+.retencao-kpi-card small {
+  font-size: 12px;
+  color: #475569;
+}
+
+.retencao-oportunidades {
+  margin-top: 12px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: #f8fafc;
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.retencao-oportunidades h4 {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+  color: #0f172a;
+}
+
+.retencao-oportunidades ul {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+}
+
+.retencao-oportunidades li {
+  font-size: 13px;
+  color: #334155;
+}
+
+.retencao-chart-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.retencao-chart {
+  width: 100%;
+  height: 320px;
+}
+
+.retencao-chart-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.retencao-chart-header select {
+  min-width: 130px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  background: #fff;
+}
+
+.retencao-vazio {
+  text-align: center;
+  color: #7b8190;
+}
+
+.retencao-mapa-rotulos {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-height: 160px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.retencao-mapa-chip {
+  border: 1px solid #dbe5f1;
+  background: #f8fafc;
+  color: #334155;
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: 12px;
+  line-height: 1.3;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.retencao-mapa-chip strong {
+  color: #1e40af;
+  margin-right: 4px;
+}
+
+.retencao-mapa-meta {
+  color: #64748b;
+  font-size: 11px;
+}
+
+.retencao-benchmark-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.retencao-benchmark-header h3 {
+  margin: 0;
+}
+
+.retencao-benchmark-header p {
+  margin: 4px 0 0;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.retencao-benchmark-matriz {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 260px;
+}
+
+.retencao-benchmark-matriz label {
+  font-size: 12px;
+  color: #667085;
+}
+
+.retencao-benchmark-matriz select {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  background: #fff;
+}
+
+.retencao-section-header {
+  margin: 4px 0 8px;
+}
+
+.retencao-section-header h2 {
+  margin: 0 0 4px;
+  font-size: 18px;
+  color: #0f172a;
+}
+
+.retencao-section-header p {
+  margin: 0;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.retencao-subcard {
+  border: 1px dashed rgba(15, 23, 42, 0.12);
+  background: #f8fafc;
+}
+
+.retencao-indicador-positivo {
+  color: #166534;
+  font-weight: 600;
+}
+
+.retencao-indicador-negativo {
+  color: #b91c1c;
+  font-weight: 600;
+}
+
+.retencao-indicador-neutro {
+  color: #334155;
+  font-weight: 600;
+}

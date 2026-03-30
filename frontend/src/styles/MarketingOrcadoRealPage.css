@@ -1,0 +1,139 @@
+.marketing-import-card,
+.marketing-filter-card,
+.marketing-chart-card,
+.marketing-op-card,
+.marketing-table-card {
+  margin-bottom: 16px;
+}
+
+.marketing-import-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.marketing-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #334155;
+}
+
+.marketing-import-preview {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  font-size: 13px;
+  color: #334155;
+}
+
+.marketing-filters-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 10px;
+}
+
+.marketing-filters-grid label {
+  display: block;
+  font-size: 12px;
+  margin-bottom: 4px;
+  color: #64748b;
+}
+
+.marketing-filters-grid select {
+  width: 100%;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: #fff;
+  min-height: 38px;
+}
+
+.marketing-filters-grid select[multiple] {
+  min-height: 120px;
+}
+
+.marketing-filter-actions {
+  margin-top: 10px;
+  display: flex;
+  gap: 8px;
+}
+
+.marketing-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.marketing-kpi-card {
+  border: 1px solid rgba(37, 99, 235, 0.14);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: rgba(37, 99, 235, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.marketing-kpi-card span {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.marketing-kpi-card strong {
+  font-size: 22px;
+  color: #0f172a;
+}
+
+.marketing-chart {
+  width: 100%;
+  height: 350px;
+}
+
+.marketing-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.marketing-op-card ul {
+  margin: 0 0 12px 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 8px;
+}
+
+.marketing-op-card li {
+  color: #334155;
+  font-size: 13px;
+}
+
+.marketing-badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.marketing-badge {
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  border-radius: 999px;
+  padding: 4px 9px;
+  font-size: 12px;
+  color: #334155;
+}
+
+.marketing-table-card table td.positivo {
+  color: #166534;
+  font-weight: 600;
+}
+
+.marketing-table-card table td.negativo {
+  color: #b91c1c;
+  font-weight: 600;
+}
